@@ -127,12 +127,12 @@ If an existing codebase was detected:
 
 Display the initialization summary using brand formatting from @${CLAUDE_PLUGIN_ROOT}/references/vbw-brand.md.
 
-Use a double-line box for the completion banner:
+Use the Phase Banner template (vbw-brand.md) for the completion banner:
 ```
-+==============================+
-|  VBW Project Initialized     |
-|  {project-name}              |
-+==============================+
+╔══════════════════════════════╗
+║  VBW Project Initialized     ║
+║  {project-name}              ║
+╚══════════════════════════════╝
 ```
 
 Show created files with checkmarks:
@@ -162,15 +162,15 @@ that improve planning quality for existing projects.
 If BROWNFIELD=false, end with:
 ```
 ➜ Next Up
-  /vbw:plan 1 to plan your first phase.
+  /vbw:plan 1 -- Plan your first phase
 ```
 
 ## Output Format
 
 Follow @${CLAUDE_PLUGIN_ROOT}/references/vbw-brand.md for all visual formatting:
-- Double-line box (Unicode) for the init completion banner
-- ✓ for created files and completed steps
+- Use the **Phase Banner** template for the init completion banner (double-line box)
+- Use the **File Checklist** template for the created files list (✓ prefix)
+- Use the **Next Up Block** template for navigation (➜ header, indented commands with --)
 - ○ for pending/future items
-- ➜ for navigation and next-step prompts
 - Keep lines under 80 characters inside boxes
 - No ANSI color codes
