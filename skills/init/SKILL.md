@@ -1,6 +1,5 @@
-# prettier-ignore
 ---
-name: vbw-init
+name: init
 description: Initialize a new VBW project with .planning directory, artifact templates, and project definition.
 disable-model-invocation: true
 argument-hint: [project-description]

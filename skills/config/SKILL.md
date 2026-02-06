@@ -1,6 +1,5 @@
-# prettier-ignore
 ---
-name: vbw-config
+name: config
 description: View and modify VBW configuration including effort profile, verification tier, and skill preferences.
 disable-model-invocation: true
 argument-hint: [setting value]

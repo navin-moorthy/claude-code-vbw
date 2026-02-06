@@ -1,6 +1,5 @@
-# prettier-ignore
 ---
-name: vbw-help
+name: help
 description: Display all available VBW commands with descriptions and usage examples.
 disable-model-invocation: true
 argument-hint: [command-name]
