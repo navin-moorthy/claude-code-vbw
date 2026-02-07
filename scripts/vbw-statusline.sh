@@ -323,6 +323,7 @@ L4="Model: ${D}${MODEL}${X}"
 L4="$L4 ${D}│${X} Cost: ${Y}$(fmt cost "$COST")${X}"
 L4="$L4 ${D}│${X} Time: $(fmt dur "$DUR_MS") (API: $(fmt dur "$API_MS"))"
 L4="$L4 ${D}│${X} Diff: ${G}+${ADDED}${X} ${R}-${REMOVED}${X}"
+[ -n "$AGENT_LINE" ] && L4="$L4 ${D}│${X} ${AGENT_LINE}"
 [ -n "$GH_LINK" ] && L4="$L4 ${D}│${X} ${GH_LINK}"
 L4="$L4 ${D}│${X} ${D}CC ${VER}${X}"
 
@@ -332,7 +333,5 @@ printf '%b\n' "$L1"
 printf '%b\n' "$L2"
 printf '%b\n' "$L3"
 printf '%b\n' "$L4"
-# Line 5: agent activity (only if agents running)
-[ -n "$AGENT_LINE" ] && printf '%b\n' "$AGENT_LINE"
 
 exit 0
