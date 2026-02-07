@@ -13,7 +13,6 @@ allowed-tools: Read, Glob
 Show all VBW commands grouped by lifecycle stage. Use a double-line box for the header.
 
 Mark available commands (those with .md files in commands/ directory) with ✓.
-Mark planned commands with ○ and their target phase.
 
 ### With argument: Display detailed command help
 
@@ -69,10 +68,10 @@ If the command is not yet implemented, show its planned phase and description.
 | ✓      | /vbw:add-phase   | Add phase to end of active roadmap                   |
 | ✓      | /vbw:insert-phase| Insert urgent phase with renumbering                 |
 | ✓      | /vbw:remove-phase| Remove future phase with renumbering                 |
-| ○      | /vbw:whats-new   | View changelog and recent updates [Phase 9]          |
-| ○      | /vbw:update      | Update VBW to latest version [Phase 9]               |
+| ✓      | /vbw:whats-new   | View changelog and recent updates                    |
+| ✓      | /vbw:update      | Update VBW to latest version                         |
 
-**Legend:** ✓ Available now | ○ Planned (see phase)
+**Legend:** ✓ Available
 
 ## Getting Started
 
@@ -91,6 +90,6 @@ Run `/vbw:help <command>` for detailed help on any command.
 
 Follow @${CLAUDE_PLUGIN_ROOT}/references/vbw-brand.md for visual formatting:
 - Double-line box for the help header banner
-- ✓ for available commands, ○ for planned commands
+- ✓ for available commands
 - ➜ for navigation prompts in Getting Started
 - No ANSI color codes
