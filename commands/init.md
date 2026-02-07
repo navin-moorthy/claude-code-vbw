@@ -40,7 +40,7 @@ Installed skills:
 
 Check if Agent Teams is enabled:
 ```
-!`cat ~/.claude/settings.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('env',{}).get('CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS','0'))" 2>/dev/null || echo "0"`
+!`cat ~/.claude/settings.json 2>/dev/null | jq -r '.env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS // "0"' 2>/dev/null || echo "0"`
 ```
 
 If the result is NOT `"1"`:
@@ -123,6 +123,8 @@ Follow `${CLAUDE_PLUGIN_ROOT}/references/skill-discovery.md`:
 3. Suggest uninstalled skills (if skill_suggestions enabled in config)
 4. Write Skills section to STATE.md
 
+**IMPORTANT:** Do NOT mention `find-skills` to the user during init. The find-skills meta-skill is only used during `/vbw:plan` for dynamic registry lookups. During init, curated stack mappings are sufficient. If find-skills is not installed, proceed silently — do not report it as missing or suggest installing it.
+
 ### Step 5.8: Generate CLAUDE.md
 
 Follow `${CLAUDE_PLUGIN_ROOT}/references/memory-protocol.md`. Write CLAUDE.md at project root with:
@@ -135,39 +137,44 @@ Follow `${CLAUDE_PLUGIN_ROOT}/references/memory-protocol.md`. Write CLAUDE.md at
 
 Keep under 200 lines.
 
-### Step 5.9: Statusline offer
+### Step 5.9: Statusline setup
 
-Check if a statusline is already configured:
-```
-!`cat ~/.claude/settings.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('statusLine',''))" 2>/dev/null || echo ""`
-```
+Run TWO checks:
 
-If the result is empty (no statusline configured):
-
-Display:
-```
-○ VBW includes a custom status line for Claude Code.
-  It shows your phase, milestone, effort profile, branch, context usage,
-  cost, duration, and line diff — updated after every response.
-
-  Install it?
+**Check A** — Does the script file exist?
+```bash
+ls ~/.claude/vbw-statusline.sh 2>/dev/null && echo "FILE_EXISTS" || echo "FILE_MISSING"
 ```
 
-Ask the user for permission. If they approve:
-1. Copy `${CLAUDE_PLUGIN_ROOT}/scripts/vbw-statusline.sh` to `~/.claude/vbw-statusline.sh`
-2. Make it executable (`chmod +x`)
-3. Read `~/.claude/settings.json` (create `{}` if it doesn't exist)
-4. Set `statusLine` to `bash ~/.claude/vbw-statusline.sh`
-5. Write the file back
-6. Display "✓ Statusline installed. Restart Claude Code to activate."
+**Check B** — What does the statusLine setting contain?
+```bash
+cat ~/.claude/settings.json 2>/dev/null | jq -r '.statusLine // "" | if test("vbw-statusline") then "HAS_VBW" elif . != "" then "HAS_OTHER" else "EMPTY" end' 2>/dev/null || echo "EMPTY"
+```
 
-If they decline: display "○ Skipped. Run /vbw:config to install it later." and continue.
+**Decision tree based on results:**
 
-If a statusline is already configured BUT contains `vbw-statusline` and the file `~/.claude/vbw-statusline.sh` does NOT exist: the setting is stale — proceed with the copy (steps 1-6 above) without asking.
+- If Check A = `FILE_EXISTS` and Check B = `HAS_VBW`: **Skip silently.** VBW statusline is fully installed.
 
-If a statusline is already configured and does NOT contain `vbw-statusline`: skip silently (don't overwrite other plugins' statuslines).
+- If Check A = `FILE_MISSING` and Check B = `HAS_VBW`: **Stale setting.** Copy the script without asking:
+  1. Copy `${CLAUDE_PLUGIN_ROOT}/scripts/vbw-statusline.sh` to `~/.claude/vbw-statusline.sh`
+  2. Run `chmod +x ~/.claude/vbw-statusline.sh`
+  3. Display "✓ Statusline script restored. Restart Claude Code to activate."
 
-If a statusline is already configured and `~/.claude/vbw-statusline.sh` exists: skip silently (already installed).
+- If Check B = `HAS_OTHER`: **Skip silently.** Another plugin owns the statusline.
+
+- If Check B = `EMPTY` and Check A = `FILE_MISSING`: **Offer to install.** Display:
+  ```
+  ○ VBW includes a custom status line showing phase progress, context usage,
+    cost, duration, and more — updated after every response. Install it?
+  ```
+  Ask the user. If they approve:
+  1. Copy `${CLAUDE_PLUGIN_ROOT}/scripts/vbw-statusline.sh` to `~/.claude/vbw-statusline.sh`
+  2. Run `chmod +x ~/.claude/vbw-statusline.sh`
+  3. Read `~/.claude/settings.json` (create `{}` if missing)
+  4. Set `statusLine` to `bash ~/.claude/vbw-statusline.sh`
+  5. Write the file back
+  6. Display "✓ Statusline installed. Restart Claude Code to activate."
+  If they decline: display "○ Skipped. Run /vbw:config to install it later."
 
 ### Step 6: Present summary
 
@@ -184,10 +191,10 @@ If a statusline is already configured and `~/.claude/vbw-statusline.sh` exists: 
   ✓ .vbw-planning/config.json
   ✓ .vbw-planning/phases/
   ✓ CLAUDE.md
-  {If statusline installed:}
+  {include next line only if statusline was installed or restored during this init}
   ✓ ~/.claude/vbw-statusline.sh
 
-  {If skills discovered:}
+  {include Skills block only if skills were discovered in Step 5.7}
   Skills:
     Installed: {count} ({names})
     Suggested: {count} ({names})
@@ -200,13 +207,13 @@ If BROWNFIELD:
 
 ➜ Next Up
   /vbw:map -- Analyze your codebase (recommended)
-  /vbw:plan 1 -- Skip mapping and plan directly
+  /vbw:plan -- Skip mapping and plan directly
 ```
 
 If greenfield:
 ```
 ➜ Next Up
-  /vbw:plan 1 -- Plan your first phase
+  /vbw:plan -- Plan your first phase
 ```
 
 ## Output Format
