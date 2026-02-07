@@ -77,6 +77,7 @@ Read `${CLAUDE_PLUGIN_ROOT}/skills/{name}/SKILL.md` and display: name, descripti
 | ✓      | /vbw:help      | This help guide                                      |
 | ✓      | /vbw:whats-new | View changelog and recent updates                    |
 | ✓      | /vbw:update    | Update VBW to latest version                         |
+| ✓      | /vbw:uninstall | Clean removal — statusline, settings, project data   |
 
 ## Architecture Notes
 
