@@ -97,7 +97,23 @@ Display wave banner using single-line box:
 
 **For each plan in the wave:**
 
-1. **Skip if already complete:** If a SUMMARY.md exists for this plan, display "✓ Plan {NN}: {title} -- already complete (skipping)" and move to the next plan. This provides resume support.
+1. **Resume handling (RSLC-01, RSLC-02):**
+
+   a. **Skip if fully complete:** If a SUMMARY.md exists for this plan with `status: complete`, display "✓ Plan {NN}: {title} -- already complete (skipping)" and move to the next plan. This provides full-plan resume.
+
+   b. **Resume if partially complete:** If a SUMMARY.md exists with `status: partial`:
+      - Read the SUMMARY.md to find which tasks were completed (check the "Files Modified" table and commit hashes)
+      - Run `git log --oneline -20` to identify committed tasks by their commit messages (format: `{type}({phase}-{plan}): {task-name}`)
+      - Determine the first uncommitted task number
+      - When spawning the Dev agent, add to the description: "Resume from Task {N}. Tasks 1-{N-1} are already committed. Skip them and start with Task {N}."
+      - Display "➜ Plan {NN}: {title} -- resuming from Task {N}"
+
+   c. **Recover from crash:** If NO SUMMARY.md exists but `git log` shows commits matching this plan's pattern (`{type}({phase}-{plan}):`):
+      - Count the committed tasks from git log
+      - When spawning the Dev agent, add: "Resume from Task {N}. Tasks 1-{N-1} are already committed per git history. Skip them."
+      - Display "➜ Plan {NN}: {title} -- recovering, resuming from Task {N}"
+
+   d. **Fresh start:** If no SUMMARY.md and no matching commits: proceed normally (existing behavior).
 
 2. **Note checkpoint plans:** If the plan has `autonomous: false`, display: "⚠ Plan {NN} has checkpoints -- will pause for user input during execution."
 
@@ -123,6 +139,46 @@ Display wave banner using single-line box:
    - `failed`: Display "✗ Plan {NN}: {title} -- failed"
 3. If status is "failed" or "partial": Report the issue to the user and ask: "Continue to next wave, or stop here?"
 4. Collect metrics from SUMMARY.md: deviations count, duration
+5. **Capture agent metrics (RSLC-06, RSLC-07, RSLC-08):**
+   After the Task tool returns from the Dev agent spawn:
+   - Extract `total_tokens` from the Task tool response (if available in the response metadata)
+   - Extract `duration_ms` from the Task tool response
+   - Note any compaction events that occurred during the Dev session (look for compaction markers in the response)
+   - Record these metrics in the plan's SUMMARY.md frontmatter:
+     - `tokens_consumed`: total tokens from Task tool response
+     - `compaction_count`: number of compaction events (0 if none)
+     - `duration`: formatted duration string
+   - Also accumulate phase-level metrics for the completion summary:
+     - Total tokens across all plans
+     - Total compactions across all plans
+     - Per-agent-type breakdown (Dev tokens for execution, QA tokens for verification)
+
+### Step 4.5: Validate SUMMARY.md (VRFY-05)
+
+After each Dev agent completes a plan, validate the produced SUMMARY.md against the template at `${CLAUDE_PLUGIN_ROOT}/templates/SUMMARY.md`:
+
+**Required frontmatter fields:**
+- `phase`: Must match the current phase
+- `plan`: Must match the plan number
+- `status`: Must be one of: complete, partial, failed
+- `tokens_consumed`: Must be a number (from Dev agent response metrics)
+- `duration`: Must be a time string
+- `deviations`: Must be a list (empty list if none)
+- `completed`: Must be a date string
+
+**Validation checks:**
+1. SUMMARY.md exists at the expected path
+2. YAML frontmatter parses without error
+3. All required fields are present and non-empty
+4. `status` is a valid value (complete/partial/failed)
+5. Body contains "## What Was Built" section
+6. Body contains "## Files Modified" section
+
+**If validation fails:**
+- Display "⚠ Plan {NN}: SUMMARY.md is incomplete -- missing: {list of missing fields}"
+- Do NOT block execution. The build continues, but the validation failure is noted in the phase completion summary.
+
+Per VRFY-05 in `${CLAUDE_PLUGIN_ROOT}/references/verification-protocol.md`, this is a protocol-level check, not a blocking gate.
 
 ### Step 5: Post-execution QA verification (optional)
 
@@ -218,6 +274,7 @@ Note: If --plan=NN was used (single plan execution, not full phase), skip patter
 - Plan count: completed plans / total plans
 - Log the effort profile used
 - Update progress bar
+- Agent metrics: total tokens consumed, compaction count, per-plan breakdown (append to Performance Metrics section)
 
 **Update .planning/ROADMAP.md:**
 - Check off completed plan entries in the phase's plan list (if the roadmap uses checkboxes or status markers)
@@ -239,6 +296,11 @@ Note: If --plan=NN was used (single plan execution, not full phase), skip patter
     Plans:      {completed}/{total}
     Effort:     {profile}
     Deviations: {total collected from SUMMARY.md files}
+
+  Observability:
+    Tokens:       {total tokens across all plans}
+    Compactions:  {total compaction events}
+    Per plan:     {avg tokens per plan}
 
   QA Verification:
     {PASS | PARTIAL | FAIL | skipped}
