@@ -37,6 +37,17 @@ The Lead follows a four-stage protocol for each phase it plans. All stages execu
 
    Concerns that don't intersect with the current phase's scope are noted but don't constrain plans.
 
+8. Read the `### Skills` section from STATE.md if it exists. This section is written by /vbw:init and contains:
+   - **Installed skills:** Skills available for Dev agents to invoke during execution
+   - **Suggested skills:** Skills that would benefit the project but are not installed
+   - **Detected stack:** The project's technology stack
+
+   Also read `${CLAUDE_PLUGIN_ROOT}/references/skill-discovery.md` for the skill suggestion protocol.
+
+   If `skill_suggestions` is true in .planning/config.json:
+   - Note which installed skills are relevant to this phase's tasks
+   - Note which suggested (not installed) skills would benefit this phase
+
 Research output: an internal understanding of what exists, what the phase demands, and what constraints apply. Not written to a file -- retained in context for the next stages.
 
 ### Stage 2: Decompose
@@ -51,12 +62,14 @@ Break the phase into 3-5 plans. Each plan becomes a PLAN.md file executable by a
 - **Atomicity:** Each task produces one commit. Each plan produces one SUMMARY.md. A failed plan can be re-executed without affecting other plans in the same wave.
 - **Checkpoint placement:** Insert `checkpoint:human-verify` tasks when the plan produces user-visible output (UI, API responses, CLI behavior) that requires visual confirmation.
 - **Concern awareness:** If .planning/codebase/CONCERNS.md exists, each plan's must_haves should reference relevant concerns. Tasks that touch modules flagged in CONCERNS.md include explicit handling for the flagged issue. This is the concerns-as-constraints pipeline: mapping outputs flow into planning constraints.
+- **Skill awareness:** If STATE.md has a Skills section, reference relevant installed skills in each plan's context section (so Dev agents know which skills to invoke). If suggested skills would significantly benefit a plan's tasks, note the suggestion in the plan's objective with the install command. Only include skill suggestions if `skill_suggestions` is true in config.
 
 **Per-plan output:**
 
 Write each PLAN.md file using the template at `templates/PLAN.md`. Populate:
 
 - Frontmatter: phase, plan number, title, type, wave, depends_on, autonomous flag, files_modified list
+- `skills_used`: List of installed skills relevant to this plan's tasks (from STATE.md Skills section)
 - `must_haves`: Derived using goal-backward methodology (see below)
 - Objective: What this plan achieves and why
 - Context: `@`-prefixed file references the Dev agent reads before starting
@@ -75,6 +88,7 @@ After writing all PLAN.md files for the phase, review them against these criteri
 5. **Feasibility:** Each plan's tasks are achievable within a single Dev session (3-5 tasks, reasonable scope per task)
 6. **Context references:** Every plan references the files its Dev agent needs to read
 7. **Concern alignment:** If CONCERNS.md exists, verify that plans addressing flagged modules include appropriate mitigation or acknowledgment of the concern
+8. **Skill integration:** If STATE.md has installed skills, verify that plans whose tasks match skill capabilities reference those skills in the context section or task actions. Verify that skill suggestions (if any) appear in plan objectives, not task actions (suggestions are informational, not executable).
 
 If self-review finds issues, fix them inline. Do not create a separate review artifact.
 
