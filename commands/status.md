@@ -1,6 +1,6 @@
 ---
 description: Display project progress dashboard with phase status, velocity metrics, and next action.
-argument-hint: [--verbose]
+argument-hint: [--verbose] [--metrics]
 allowed-tools: Read, Glob, Grep, Bash
 ---
 
@@ -52,6 +52,7 @@ Milestone directories:
 Extract optional flags from $ARGUMENTS:
 
 - **--verbose** (optional): Show per-plan detail within each phase, including individual plan status, title, and duration if complete.
+- **--metrics** (optional): Show detailed token consumption breakdown per agent type and compaction event history. This is the observability view.
 
 If no arguments are provided, display the standard dashboard view.
 
@@ -79,6 +80,17 @@ Gather data from multiple sources:
 - Count PLAN.md files (total plans per phase)
 - Count SUMMARY.md files (completed plans per phase)
 - This gives real-time completion data independent of STATE.md
+
+**From SUMMARY.md frontmatter (for --metrics mode):**
+- For each completed plan, read SUMMARY.md frontmatter to extract:
+  - `tokens_consumed`: total tokens for this plan's execution
+  - `compaction_count`: number of compaction events during execution
+  - `duration`: execution time
+  - `phase`: which phase this plan belongs to
+- Accumulate per-phase totals and per-agent-type estimates:
+  - Dev tokens: sum of tokens_consumed from all SUMMARY.md files
+  - QA tokens: estimated from VERIFICATION.md existence (if QA ran, estimate tokens based on tier: Quick ~5K, Standard ~15K, Deep ~30K)
+  - Lead tokens: estimated from plan count (each plan creation ~20K tokens)
 
 **From .planning/ACTIVE and milestone directories:**
 - Check if .planning/ACTIVE exists (multi-milestone mode)
@@ -149,6 +161,34 @@ Format the suggestion as a copy-paste command with a brief description.
 Additional milestone-aware suggestions:
 - If all phases of the active milestone are complete: Suggest `/vbw:audit` before `/vbw:ship`
 - If multiple milestones exist: Include `/vbw:switch {other}` as an option when showing next actions
+
+### Step 5.5: Compute metrics (--metrics mode only)
+
+If --metrics flag is NOT set, skip this step.
+
+**Token breakdown:**
+1. Read all SUMMARY.md files across all phases (use Glob: `.planning/phases/*/*-SUMMARY.md`)
+2. For each SUMMARY.md, extract `tokens_consumed` and `compaction_count` from frontmatter
+3. Group by phase and compute:
+   - Per-phase token total
+   - Per-phase compaction count
+   - Per-phase average tokens per plan
+4. Compute overall totals:
+   - Total tokens consumed (all phases)
+   - Total compaction events (all phases)
+   - Average tokens per plan (overall)
+   - Estimated cost (total_tokens / 1000 * $0.015 for Opus, approximate)
+
+**Compaction history:**
+1. For each SUMMARY.md with `compaction_count > 0`:
+   - Record: phase, plan, compaction count
+2. Sort by phase/plan order
+
+**Agent type estimates:**
+1. Dev tokens: sum of all SUMMARY.md tokens_consumed
+2. QA tokens: count VERIFICATION.md files, estimate tokens per tier
+3. Lead tokens: count PLAN.md files, estimate ~20K per plan
+4. Total: Dev + QA + Lead estimates
 
 ### Step 6: Display dashboard
 
@@ -233,6 +273,41 @@ Use Metrics Block formatting from vbw-brand.md: labels left-aligned with colons 
 ```
 
 Use the Next Up Block template from vbw-brand.md. Show the single most relevant next command determined in Step 5.
+
+**Metrics view (if --metrics flag is set):**
+
+Display after the standard dashboard (standard dashboard still shows):
+
+```
+  Token Consumption:
+    Total:        {total tokens} tokens
+    By Agent:
+      Dev:        {dev tokens} ({percentage}%)
+      QA:         {qa tokens} ({percentage}%)
+      Lead:       {lead tokens} ({percentage}%)
+    By Phase:
+      Phase 1:    {tokens} ({plans} plans, {avg}/plan)
+      Phase 2:    {tokens} ({plans} plans, {avg}/plan)
+      ...
+
+  Compaction Events:
+    Total:        {count} across {phases-with-compactions} phases
+    History:
+      Phase {N}, Plan {M}: {count} compaction(s)
+      ...
+    (or "None recorded" if no compactions)
+
+  Cost Estimate:
+    ~${estimated} (based on Opus pricing)
+```
+
+Use Metrics Block formatting from vbw-brand.md. Labels left-aligned with colons aligned, values indented consistently.
+
+If no SUMMARY.md files have `tokens_consumed` data (e.g., legacy plans before Phase 8), display:
+```
+  Token Consumption:
+    No token data available. Token tracking starts with Phase 8.
+```
 
 ## Output Format
 
