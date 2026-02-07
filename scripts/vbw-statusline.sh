@@ -2,8 +2,8 @@
 # VBW Status Line for Claude Code — 4/5-Line Dashboard
 # Line 1: [VBW] Phase N/M │ Plans: done/total (N this phase) │ Effort: X │ QA: pass │ Branch: main
 # Line 2: ▓▓▓▓▓▓▓▓░░░░░░░░░░░░ 42% │ Tokens: 15.2K in  1.2K out │ Cache: 5.0K write  2.0K read
-# Line 3: Session: ██░░░░░░░░  6% resets 2h 13m │ Weekly: ███░░░░░░░ 35% resets Thu 04:00 │ Opus: ░░░░░░░░░░  0%
-# Line 4: Model: Opus │ Cost: $1.42 │ Time: 12m 34s (API: 23s) │ Diff: +156 -23 │ CC 1.0.11
+# Line 3: 5h: ██░░░░░░░░  6% ~2h13m │ 7d: ███░░░░░░░ 35% │ Opus: ░░░░░░░░░░  0% │ Extra: 96% $578/$600
+# Line 4: Model: Opus │ Cost: $1.42 │ Time: 12m 34s (API: 23s) │ Diff: +156 -23 │ GitHub │ CC 1.0.11
 # Line 5: Team: build-team │ researcher ◆ │ tester ○ │ dev-1 ✓ │ Tasks: 3/5  (conditional)
 
 input=$(cat)
@@ -40,7 +40,6 @@ fmt() {
 }
 
 # Check if a cache file is still fresh (within TTL seconds)
-# Usage: cache_fresh <file> <ttl_seconds>
 cache_fresh() {
   local cf="$1" ttl="$2"
   [ ! -f "$cf" ] && return 1
@@ -54,7 +53,6 @@ cache_fresh() {
 }
 
 # Build a progress bar: progress_bar <percent> <width>
-# Returns colored bar string
 progress_bar() {
   local pct="$1" width="$2"
   local filled=$((pct * width / 100))
@@ -134,6 +132,10 @@ fi
 IFS='|' read -r PH TT ST EF BR PD PT PPD QA < "$VBW_CF"
 
 # --- Usage limits (cached 60s) ---
+# API: https://api.anthropic.com/api/oauth/usage
+# Requires: Authorization: Bearer <token>, anthropic-beta: oauth-2025-04-20
+# Response: five_hour, seven_day, seven_day_opus (utilization 0-100, resets_at ISO),
+#           extra_usage (utilization, monthly_limit, used_credits)
 
 USAGE_CF="/tmp/vbw-usage-cache-${_UID}"
 USAGE_LINE=""
@@ -151,25 +153,28 @@ if ! cache_fresh "$USAGE_CF" 60; then
   if [ -n "$OAUTH_TOKEN" ]; then
     USAGE_RAW=$(curl -s --max-time 3 \
       -H "Authorization: Bearer ${OAUTH_TOKEN}" \
+      -H "anthropic-beta: oauth-2025-04-20" \
       "https://api.anthropic.com/api/oauth/usage" 2>/dev/null)
 
     if [ -n "$USAGE_RAW" ] && echo "$USAGE_RAW" | jq -e '.five_hour' >/dev/null 2>&1; then
-      # Parse all usage data in a single jq call, pre-compute epoch + weekly label
+      # Parse all usage data in a single jq call
+      # utilization is already 0-100 (NOT 0-1), so just floor it
       eval "$(echo "$USAGE_RAW" | jq -r '
-        def pct: (. * 100 | floor);
+        def pct: floor;
         def epoch: gsub("\\.[0-9]+"; "") | gsub("Z$"; "+00:00") | split("+")[0] + "Z" | fromdate;
-        def wlabel: gsub("\\.[0-9]+"; "") | gsub("Z$"; "+00:00") | split("+")[0] + "Z" | fromdate |
-          strftime("%a %H:%M");
         "FIVE_PCT=" + ((.five_hour.utilization // 0) | pct | tostring),
-        "FIVE_EPOCH=" + ((.five_hour.resets_at // "") | if . == "" then "0" else epoch | tostring end),
+        "FIVE_EPOCH=" + ((.five_hour.resets_at // "") | if . == "" or . == null then "0" else epoch | tostring end),
         "WEEK_PCT=" + ((.seven_day.utilization // 0) | pct | tostring),
-        "WEEK_LABEL=" + ((.seven_day.resets_at // "") | if . == "" then "N/A" else wlabel end),
-        "OPUS_PCT=" + ((.seven_day_opus.utilization // 0) | pct | tostring)
+        "WEEK_EPOCH=" + ((.seven_day.resets_at // "") | if . == "" or . == null then "0" else epoch | tostring end),
+        "OPUS_PCT=" + ((.seven_day_opus.utilization // 0) | pct | tostring),
+        "EXTRA_PCT=" + ((.extra_usage.utilization // -1) | pct | tostring),
+        "EXTRA_USED=" + ((.extra_usage.used_credits // 0) | tostring),
+        "EXTRA_LIMIT=" + ((.extra_usage.monthly_limit // 0) | tostring)
       ' 2>/dev/null)"
 
-      printf '%s\n' "${FIVE_PCT:-0}|${FIVE_EPOCH:-0}|${WEEK_PCT:-0}|${WEEK_LABEL:-N/A}|${OPUS_PCT:-0}|ok" > "$USAGE_CF"
+      printf '%s\n' "${FIVE_PCT:-0}|${FIVE_EPOCH:-0}|${WEEK_PCT:-0}|${WEEK_EPOCH:-0}|${OPUS_PCT:-0}|${EXTRA_PCT:--1}|${EXTRA_USED:-0}|${EXTRA_LIMIT:-0}|ok" > "$USAGE_CF"
     else
-      printf '%s\n' "0|0|0|N/A|0|fail" > "$USAGE_CF"
+      printf '%s\n' "0|0|0|0|0|-1|0|0|fail" > "$USAGE_CF"
     fi
   else
     printf '%s\n' "noauth" > "$USAGE_CF"
@@ -179,32 +184,74 @@ fi
 USAGE_DATA=$(cat "$USAGE_CF" 2>/dev/null)
 
 if [ "$USAGE_DATA" != "noauth" ]; then
-  IFS='|' read -r FIVE_PCT FIVE_EPOCH WEEK_PCT WEEK_LABEL OPUS_PCT FETCH_OK <<< "$USAGE_DATA"
+  IFS='|' read -r FIVE_PCT FIVE_EPOCH WEEK_PCT WEEK_EPOCH OPUS_PCT EXTRA_PCT EXTRA_USED EXTRA_LIMIT FETCH_OK <<< "$USAGE_DATA"
 
   if [ "$FETCH_OK" = "ok" ]; then
-    # Session countdown: pure bash arithmetic
-    FIVE_REM=""
-    if [ "${FIVE_EPOCH:-0}" -gt 0 ] 2>/dev/null; then
-      DIFF=$((FIVE_EPOCH - NOW))
-      if [ "$DIFF" -gt 0 ]; then
-        HH=$((DIFF / 3600))
-        MM=$(( (DIFF % 3600) / 60 ))
-        FIVE_REM="${HH}h ${MM}m"
-      else
-        FIVE_REM="now"
+    # Countdown helper: epoch -> "~2h13m" / "~3d 2h" / "now"
+    countdown() {
+      local epoch="$1"
+      if [ "${epoch:-0}" -gt 0 ] 2>/dev/null; then
+        local diff=$((epoch - NOW))
+        if [ "$diff" -gt 0 ]; then
+          if [ "$diff" -ge 86400 ]; then
+            local dd=$((diff / 86400)) hh=$(( (diff % 86400) / 3600 ))
+            echo "~${dd}d ${hh}h"
+          else
+            local hh=$((diff / 3600)) mm=$(( (diff % 3600) / 60 ))
+            echo "~${hh}h${mm}m"
+          fi
+        else
+          echo "now"
+        fi
       fi
-    fi
+    }
 
-    USAGE_LINE="Session: $(progress_bar "${FIVE_PCT:-0}" 10) ${FIVE_PCT:-0}%"
-    [ -n "$FIVE_REM" ] && USAGE_LINE="$USAGE_LINE resets $FIVE_REM"
-    USAGE_LINE="$USAGE_LINE ${D}│${X} Weekly: $(progress_bar "${WEEK_PCT:-0}" 10) ${WEEK_PCT:-0}%"
-    [ "$WEEK_LABEL" != "N/A" ] && USAGE_LINE="$USAGE_LINE resets $WEEK_LABEL"
+    FIVE_REM=$(countdown "$FIVE_EPOCH")
+    WEEK_REM=$(countdown "$WEEK_EPOCH")
+
+    # 5-hour session
+    USAGE_LINE="5h: $(progress_bar "${FIVE_PCT:-0}" 10) ${FIVE_PCT:-0}%"
+    [ -n "$FIVE_REM" ] && USAGE_LINE="$USAGE_LINE $FIVE_REM"
+
+    # 7-day all-models
+    USAGE_LINE="$USAGE_LINE ${D}│${X} 7d: $(progress_bar "${WEEK_PCT:-0}" 10) ${WEEK_PCT:-0}%"
+    [ -n "$WEEK_REM" ] && USAGE_LINE="$USAGE_LINE $WEEK_REM"
+
+    # 7-day Opus-specific
     USAGE_LINE="$USAGE_LINE ${D}│${X} Opus: $(progress_bar "${OPUS_PCT:-0}" 10) ${OPUS_PCT:-0}%"
+
+    # Extra usage (monthly spend) — only show if present (not -1)
+    if [ "${EXTRA_PCT:--1}" -ge 0 ] 2>/dev/null; then
+      # Format used/limit as dollars (credits are in cents)
+      EXTRA_USED_D=$((EXTRA_USED / 100))
+      EXTRA_LIMIT_D=$((EXTRA_LIMIT / 100))
+      USAGE_LINE="$USAGE_LINE ${D}│${X} Extra: $(progress_bar "${EXTRA_PCT}" 5) ${EXTRA_PCT}% \$${EXTRA_USED_D}/\$${EXTRA_LIMIT_D}"
+    fi
   else
     USAGE_LINE="${D}Limits: fetch failed (retry in 60s)${X}"
   fi
 else
   USAGE_LINE="${D}Limits: N/A (using API key)${X}"
+fi
+
+# --- GitHub link (cached 30s) ---
+
+GH_CF="/tmp/vbw-gh-cache-${_UID}"
+GH_LINK=""
+
+if ! cache_fresh "$GH_CF" 30; then
+  GH_URL=""
+  if git rev-parse --git-dir >/dev/null 2>&1; then
+    GH_URL=$(git remote get-url origin 2>/dev/null | sed 's|git@github.com:|https://github.com/|' | sed 's|\.git$||')
+  fi
+  printf '%s\n' "$GH_URL" > "$GH_CF"
+fi
+
+GH_URL=$(cat "$GH_CF" 2>/dev/null)
+if [ -n "$GH_URL" ]; then
+  GH_NAME=$(basename "$GH_URL")
+  # OSC 8 clickable link: \e]8;;URL\a TEXT \e]8;;\a
+  GH_LINK="\033]8;;${GH_URL}\a${GH_NAME}\033]8;;\a"
 fi
 
 # --- Team status (cached 3s) ---
@@ -214,7 +261,6 @@ TEAM_LINE=""
 
 if ! cache_fresh "$TEAM_CF" 3; then
   TEAM_DATA=""
-  # Find active team configs
   TEAM_DIR="$HOME/.claude/teams"
   if [ -d "$TEAM_DIR" ]; then
     for tcfg in "$TEAM_DIR"/*/config.json; do
@@ -222,14 +268,10 @@ if ! cache_fresh "$TEAM_CF" 3; then
       TNAME=$(jq -r '.team_name // empty' "$tcfg" 2>/dev/null)
       [ -z "$TNAME" ] && continue
 
-      # Get members list
       MEMBERS=$(jq -r '.members[]?.name // empty' "$tcfg" 2>/dev/null)
       [ -z "$MEMBERS" ] && continue
 
-      # Determine task dir
       TASK_DIR="$HOME/.claude/tasks/${TNAME}"
-
-      # Build member status via single jq across all task files
       MEMBER_STATUS=""
       DONE=0; TOTAL=0
       if [ -d "$TASK_DIR" ]; then
@@ -240,10 +282,8 @@ if ! cache_fresh "$TEAM_CF" 3; then
         fi
       fi
 
-      # Build member indicators
       while IFS= read -r mname; do
         [ -z "$mname" ] && continue
-        # Check if member has an in_progress task
         HAS_ACTIVE="false"
         HAS_DONE="false"
         if [ -n "$TASK_DATA" ]; then
@@ -260,10 +300,9 @@ if ! cache_fresh "$TEAM_CF" 3; then
       done <<< "$MEMBERS"
 
       TEAM_DATA="Team: ${C}${TNAME}${X}${MEMBER_STATUS} ${D}│${X} Tasks: ${DONE:-0}/${TOTAL:-0}"
-      break  # Show first active team only
+      break
     done
   fi
-  # Write empty string if no teams
   printf '%s\n' "$TEAM_DATA" > "$TEAM_CF"
 fi
 
@@ -303,21 +342,22 @@ L2="$L2 ${D}│${X} Cache: $(fmt tok "$CACHE_W") write  $(fmt tok "$CACHE_R") re
 
 L3="$USAGE_LINE"
 
-# --- Line 4: session economy ---
+# --- Line 4: session economy + GitHub ---
 
 L4="Model: ${D}${MODEL}${X}"
 L4="$L4 ${D}│${X} Cost: ${Y}$(fmt cost "$COST")${X}"
 L4="$L4 ${D}│${X} Time: $(fmt dur "$DUR_MS") (API: $(fmt dur "$API_MS"))"
 L4="$L4 ${D}│${X} Diff: ${G}+${ADDED}${X} ${R}-${REMOVED}${X}"
+[ -n "$GH_LINK" ] && L4="$L4 ${D}│${X} ${GH_LINK}"
 L4="$L4 ${D}│${X} ${D}CC ${VER}${X}"
 
 # --- Output ---
 
-echo -e "$L1"
-echo -e "$L2"
-echo -e "$L3"
-echo -e "$L4"
+printf '%b\n' "$L1"
+printf '%b\n' "$L2"
+printf '%b\n' "$L3"
+printf '%b\n' "$L4"
 # Line 5: team status (only if teams active)
-[ -n "$TEAM_LINE" ] && echo -e "$TEAM_LINE"
+[ -n "$TEAM_LINE" ] && printf '%b\n' "$TEAM_LINE"
 
 exit 0
