@@ -1,5 +1,5 @@
 ---
-description: Update VBW to the latest version.
+description: Update VBW to the latest version with automatic cache refresh.
 argument-hint: "[--check]"
 allowed-tools: Read, Bash, Glob
 ---
@@ -21,53 +21,96 @@ Read `${CLAUDE_PLUGIN_ROOT}/VERSION`. Store as `old_version`.
 
 ### Step 2: Handle --check
 
-If --check: display version and update instructions, then STOP.
+If `$ARGUMENTS` contains `--check`: display version info and STOP.
 
 ```
 ╔═══════════════════════════════════════════╗
 ║  VBW Version Check                        ║
 ╚═══════════════════════════════════════════╝
 
-  Current version: {old_version}
+  Installed: v{old_version}
 
-  To update: claude plugin update vbw
+  To update: /vbw:update
 ```
 
-### Step 3: Attempt update
+### Step 3: Check for update
 
-Run: `claude plugin update vbw`
-
-If fails, show manual instructions:
-```
-⚠ Automatic update not available
-
-  1. Visit the VBW repository
-  2. Pull latest version
-  3. Re-install: claude plugin install
+Fetch the latest version from GitHub:
+```bash
+curl -sf --max-time 5 "https://raw.githubusercontent.com/yidakee/vibe-better-with-claude-code-vbw/main/VERSION"
 ```
 
-### Step 4: Verify and display
+Store result as `remote_version`. If curl fails, STOP with:
+```
+⚠ Could not reach GitHub to check for updates. Try again later.
+```
 
-Read VERSION again for `new_version`.
+If `remote_version` equals `old_version`, STOP with:
+```
+✓ VBW is already up to date (v{old_version}).
+```
 
-If changed:
+### Step 4: Perform update
+
+Display: "Updating VBW v{old_version} -> v{remote_version}..."
+
+Try each approach in order. Stop at the first one that succeeds:
+
+**Approach A — Platform update:**
+```bash
+claude plugin update vbw@vbw-marketplace 2>&1
+```
+If this succeeds (exit 0), go to Step 5.
+
+**Approach B — Uninstall and reinstall:**
+```bash
+claude plugin uninstall vbw@vbw-marketplace 2>&1 && claude plugin marketplace update vbw-marketplace 2>&1 && claude plugin install vbw@vbw-marketplace 2>&1
+```
+If this succeeds, go to Step 5.
+
+**Approach C — Manual fallback:**
+If both Bash approaches fail, display the commands for the user to run manually after exiting this session:
+```
+⚠ Automatic update could not complete. Run these commands manually:
+
+  /plugin marketplace update
+  /plugin uninstall vbw@vbw-marketplace
+  /plugin install vbw@vbw-marketplace
+
+  Then restart Claude Code.
+```
+STOP here.
+
+### Step 5: Verify and display
+
+Read `${CLAUDE_PLUGIN_ROOT}/VERSION` again for `new_version`.
+
+If `new_version` differs from `old_version`:
 ```
 ╔═══════════════════════════════════════════╗
 ║  VBW Updated                              ║
 ╚═══════════════════════════════════════════╝
 
-  ✓ Updated: {old_version} -> {new_version}
+  ✓ Updated: v{old_version} -> v{new_version}
+
+  Restart Claude Code to apply changes.
 
 ➜ Next Up
   /vbw:whats-new {old_version} -- See what changed
 ```
 
-If unchanged:
+If `new_version` equals `old_version` (update ran but VERSION didn't change — cache may need restart):
 ```
-✓ VBW is already up to date ({new_version}).
+╔═══════════════════════════════════════════╗
+║  VBW Updated                              ║
+╚═══════════════════════════════════════════╝
+
+  ✓ Update applied (v{old_version} -> v{remote_version}).
+
+  Restart Claude Code to load the new version.
 
 ➜ Next Up
-  /vbw:help -- View all commands
+  /vbw:whats-new {old_version} -- See what changed
 ```
 
 ## Output Format

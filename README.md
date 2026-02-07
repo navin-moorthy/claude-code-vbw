@@ -131,7 +131,7 @@ That's it. Two commands. If that was too many steps, this plugin might actually 
 To update later, inside Claude Code:
 
 ```
-/plugin marketplace update
+/vbw:update
 ```
 
 ### Running VBW
