@@ -18,6 +18,17 @@ The QA agent verifies completed work using goal-backward methodology. Starting f
 
 QA operates at three depth tiers. The active tier is determined by effort calibration.
 
+### Skill-Augmented Checks
+
+Before running tier-specific checks, read the `### Skills` section from STATE.md if it exists. Identify quality-related installed skills that can augment verification:
+
+- **security-audit skill:** If installed, add security-focused checks to Standard and Deep tiers (check for exposed secrets, insecure patterns, missing input validation)
+- **a11y-check skill:** If installed, add accessibility checks to Standard and Deep tiers (check for ARIA attributes, semantic HTML, keyboard navigation patterns)
+- **linting-skill:** If installed, reference linting conventions during convention compliance checks
+- **testing-skill:** If installed, verify test coverage patterns match the skill's recommendations
+
+Skill-augmented checks supplement the standard tier checks -- they do not replace them. If no quality skills are installed, verification proceeds with standard checks only.
+
 ### Quick Tier (5-10 checks)
 - Artifact existence: each file in `must_haves.artifacts` exists at its declared path
 - Frontmatter validity: YAML parses without error, required fields present
@@ -36,6 +47,7 @@ Everything in Quick, plus:
   - File placement matches directory conventions (tests in test directories, components in component directories)
   - Import ordering follows project conventions (if documented)
   - Export patterns match (default vs named, barrel files)
+- Skill-augmented checks: If quality-related skills are listed as installed in STATE.md Skills section, run additional checks guided by those skills. For example: if security-audit is installed, check that new API endpoints validate input; if a11y-check is installed, check that new UI components have appropriate ARIA attributes. These checks only run if the skill is installed.
 
 ### Deep Tier (30+ checks)
 Everything in Standard, plus:
@@ -48,6 +60,11 @@ Everything in Standard, plus:
   - For each modified file: verify changes don't introduce convention violations
   - For code patterns: verify idioms match documented conventions (e.g., error handling style, async patterns)
   - Report convention violations as FAIL with the specific convention and the violating code
+- Skill-augmented deep checks: If quality-related skills are installed, perform thorough domain-specific verification:
+  - security-audit: scan for hardcoded secrets, SQL injection vectors, XSS vulnerabilities, missing CSRF protection, insecure dependencies
+  - a11y-check: verify color contrast references, alt text on images, form labels, focus management, screen reader compatibility
+  - testing-skill: verify test file structure matches project conventions, assertions are meaningful (not just `toBeTruthy()`), edge cases covered
+  - Report skill-augmented findings with the skill name prefix: e.g., "[security-audit] Hardcoded API key found in src/config.ts:12"
 - Completeness audit: no partial implementations, no TODO/FIXME without tracking
 
 ## Goal-Backward Methodology
@@ -56,6 +73,7 @@ The verification sequence:
 
 1. **Read the plan** -- extract objective, must_haves (truths, artifacts, key_links), and success_criteria
 1b. If .planning/codebase/ exists, read CONVENTIONS.md for convention baseline. Convention checks supplement (do not replace) must_haves verification.
+1c. Read the `### Skills` section from STATE.md if it exists. Note installed quality skills for augmented checks. Skill-augmented checks are appended to the check list, not interleaved with must_have checks.
 2. **Derive check list** -- for each truth, determine what observable condition proves it; for each artifact, determine existence and content checks; for each key_link, determine the grep pattern that confirms the connection
 3. **Execute checks** -- run each check, collecting evidence (file paths, line numbers, grep output)
 4. **Classify results:**
@@ -92,6 +110,12 @@ QA returns verification findings as structured text output to the parent agent:
 | Pattern | Found | Location |
 |---------|-------|----------|
 | {name} | yes/no | {file:line if found} |
+
+## Skill-Augmented Checks (if quality skills installed)
+
+| Skill | Check | Status | Evidence |
+|-------|-------|--------|----------|
+| {skill-name} | {what was checked} | PASS/FAIL | {evidence} |
 
 ## Summary
 
