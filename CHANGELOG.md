@@ -2,6 +2,49 @@
 
 All notable changes to VBW will be documented in this file.
 
+## [1.0.40] - 2026-02-08
+
+### Added
+
+- `/vbw:implement` command: unified plan+execute in one step with dual-condition phase auto-detection (needs plan+execute vs execute-only)
+- `references/handoff-schemas.md`: 5 structured JSON schemas for agent-to-agent SendMessage communication (`scout_findings`, `dev_progress`, `dev_blocker`, `qa_result`, `debugger_report`)
+- Version bump warning in `validate-commit.sh`: warns when non-version files are staged but VERSION is not (VBW plugin development only, guarded by `name = "vbw"`)
+- Implement Command section in `references/phase-detection.md` with dual-condition detection algorithm
+- Schema-based Output Format in Scout agent: structured JSON for teammate mode, plain markdown for standalone subagent mode
+- Communication sections in Dev, QA, and Debugger agents referencing handoff schemas
+- 5 new automation hook scripts: `map-staleness.sh`, `notification-log.sh`, `post-compact.sh`, `prompt-preflight.sh`, `session-stop.sh`, `state-updater.sh`
+- `references/shared-patterns.md`: consolidated Initialization Guard and Agent Teams Shutdown Protocol
+- Plan self-review step in Lead agent
+- Per-plan dependency wiring in `/vbw:execute` (replaces wave-level blocking)
+- Per-wave QA overlap with later-wave Dev execution at Thorough/Balanced effort
+- Scout model inheritance: Opus at Thorough/Balanced, Haiku at Fast/Turbo (was always inherited)
+- REQ-ID tracing and must_haves testability instructions for Lead agent
+- `references/vbw-brand-essentials.md`: extracted brand vocabulary as standalone reference
+
+### Changed
+
+- Command count: 27 → 28 across README and help (added `/vbw:implement`)
+- 4 agent definitions (scout, dev, qa, debugger) now reference structured handoff schemas
+- 4 skills (map, execute, debug, qa) now use structured schema communication with JSON parsing fallback
+- `/vbw:execute` teammate communication protocol uses `dev_progress` and `dev_blocker` schemas
+- `/vbw:map` Scout task descriptions specify `scout_findings` schema with domain field
+- `/vbw:qa` spawn instructions and result parsing reference `qa_result` schema
+- `/vbw:debug` competing hypotheses instructions reference `debugger_report` schema
+- `/vbw:help` Getting Started now highlights `/vbw:implement` as the quick path
+- README hook counts: 12 hooks/7 events → 17 hooks/11 events with expanded descriptions
+- Statusline caching: batch formatting, 10s agent TTL, merged GitHub cache
+- SUMMARY.md frontmatter simplified; STATE.md performance metrics removed
+- REQUIREMENTS.md traceability consolidated to ROADMAP.md
+- Init guard and shutdown protocol consolidated across 21 skills via shared-patterns.md
+- Security filter regex consolidated; `.planning/` references fixed to `.vbw-planning/`
+- Agent meta-justification instructions trimmed for token reduction
+
+### Fixed
+
+- 3 scripts referenced `.planning/` instead of `.vbw-planning/`
+- GNU-only `grep -oP` replaced with POSIX-compatible patterns
+- STATE/ROADMAP context injections now capped (`head -40`) to prevent token bloat
+
 ## [1.0.35] - 2026-02-08
 
 ### Added
