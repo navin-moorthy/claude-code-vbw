@@ -2,6 +2,23 @@
 
 All notable changes to VBW will be documented in this file.
 
+## [1.0.54] - 2026-02-08
+
+### Added
+
+- **find-skills bootstrap in `/vbw:init`** — init now offers to install the find-skills meta-skill and searches the Skills.sh registry (~2000 community skills) for matches. Previously init silently skipped registry search with no explanation when curated mappings had no match.
+- **`~/.agents/skills/` path support** — `detect-stack.sh` now scans all three skill locations: `~/.claude/skills/`, `.claude/skills/`, and `~/.agents/skills/` (where the skills CLI installs). New `installed.agents` array in JSON output.
+- **find-skills bootstrap in `/vbw:skills`** — the skills command now offers to install find-skills when missing instead of silently skipping registry search.
+- **Proactive registry search in `/vbw:skills`** — when find-skills is available and detected stack items have no curated mapping, the command automatically searches the registry without requiring `--search`.
+- **Better empty state in `/vbw:skills`** — when no stack is detected, shows example search queries instead of a dead end.
+
+### Changed
+
+- **Removed "do NOT mention find-skills during init" restriction** — init now proactively bootstraps find-skills and runs dynamic registry search (Steps 3c-3e)
+- **`references/skill-discovery.md` SKIL-06** — find-skills bootstrap now runs during both `/vbw:init` and `/vbw:plan` (was plan-only)
+- **`references/skill-discovery.md` SKIL-07** — dynamic discovery triggers during both `/vbw:init` and `/vbw:plan` (was plan-only)
+- **`detect-stack.sh` find-skills detection** — checks both `~/.claude/skills/find-skills` and `~/.agents/skills/find-skills`
+
 ## [1.0.53] - 2026-02-08
 
 ### Fixed

@@ -117,7 +117,7 @@ If BROWNFIELD=true:
 
 ### Step 3: Skill discovery
 
-Run the detect-stack script to get stack detection, installed skills, and suggestions in one call:
+**3a. Run detect-stack.sh** to get stack detection, installed skills, and suggestions in one call:
 
 ```bash
 bash ${CLAUDE_PLUGIN_ROOT}/scripts/detect-stack.sh "$(pwd)"
@@ -125,14 +125,35 @@ bash ${CLAUDE_PLUGIN_ROOT}/scripts/detect-stack.sh "$(pwd)"
 
 This returns JSON with: `detected_stack[]`, `installed.global[]`, `installed.project[]`, `recommended_skills[]`, `suggestions[]`, `find_skills_available`.
 
-**Using the results:**
+Display the detected stack from `detected_stack[]` and installed skills from `installed.global[]` and `installed.project[]`.
 
-1. **Display detected stack** — list items from `detected_stack[]`.
-2. **Display installed skills** — list items from `installed.global[]` and `installed.project[]`.
-3. **Display suggestions** — list items from `suggestions[]` (recommended but not installed). For each, show the install command: `npx skills add <skill-name> -g -y`.
-4. **Write Skills section to STATE.md** — using the format from `${CLAUDE_PLUGIN_ROOT}/references/skill-discovery.md` (SKIL-05).
+**3b. Display curated suggestions** from `suggestions[]` in the JSON result. For each suggestion, show the install command: `npx skills add <skill-name> -g -y`.
 
-**IMPORTANT:** Do NOT mention `find-skills` to the user during init. During init, curated stack mappings are sufficient. If the script reports `find_skills_available: false`, proceed silently. Users can run `/vbw:skills` later for dynamic registry search.
+**3c. find-skills bootstrap** — check `find_skills_available` from the JSON result:
+
+- If `true`: display "✓ Skills.sh registry — available" and proceed to 3d.
+- If `false`: ask the user with AskUserQuestion:
+```
+○ Skills.sh Registry
+
+VBW can search the Skills.sh registry (~2000 community skills) to find
+skills matching your project. This requires the find-skills meta-skill.
+Install it now?
+```
+Options: "Install (Recommended)" / "Skip"
+
+If approved: run `npx skills add vercel-labs/skills --skill find-skills -g -y` and display the result.
+If declined: display "○ Skipped. Run /vbw:skills later to search the registry."
+
+**3d. Dynamic registry search** — if find-skills is available (either was already installed or just installed in 3c):
+
+- If `detected_stack[]` is non-empty: for each detected stack item, run `npx skills find "<stack-item>"` and collect results. Deduplicate against already-installed skills.
+- If `detected_stack[]` is empty: run a general search based on the project type (e.g., if there are .sh files, search "shell scripting"; if .md files dominate, search "documentation").
+- Display registry results with `(registry)` attribution.
+
+**3e. Offer to install** — if there are any suggestions (curated from 3b + registry from 3d combined), ask the user with AskUserQuestion using multiSelect which ones to install. Max 4 options. Include "Skip" as an option. For selected skills, run `npx skills add <skill> -g -y`.
+
+**3f. Write Skills section to STATE.md** — using the format from `${CLAUDE_PLUGIN_ROOT}/references/skill-discovery.md` (SKIL-05).
 
 ### Step 4: Present summary
 
@@ -155,6 +176,8 @@ This returns JSON with: `detected_stack[]`, `installed.global[]`, `installed.pro
     Installed: {count} ({names})
     Suggested: {count} ({names})
     Stack:     {detected}
+  {✓ Skills.sh registry (available) — if find-skills is installed}
+  {○ Skills.sh registry (skipped) — if find-skills was declined or unavailable}
 ```
 
 If BROWNFIELD:

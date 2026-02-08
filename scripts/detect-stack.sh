@@ -20,13 +20,17 @@ fi
 # --- Collect installed skills ---
 INSTALLED_GLOBAL=""
 INSTALLED_PROJECT=""
+INSTALLED_AGENTS=""
 if [ -d "$HOME/.claude/skills" ]; then
   INSTALLED_GLOBAL=$(ls -1 "$HOME/.claude/skills/" 2>/dev/null | tr '\n' ',' | sed 's/,$//')
 fi
 if [ -d "$PROJECT_DIR/.claude/skills" ]; then
   INSTALLED_PROJECT=$(ls -1 "$PROJECT_DIR/.claude/skills/" 2>/dev/null | tr '\n' ',' | sed 's/,$//')
 fi
-ALL_INSTALLED="$INSTALLED_GLOBAL,$INSTALLED_PROJECT"
+if [ -d "$HOME/.agents/skills" ]; then
+  INSTALLED_AGENTS=$(ls -1 "$HOME/.agents/skills/" 2>/dev/null | tr '\n' ',' | sed 's/,$//')
+fi
+ALL_INSTALLED="$INSTALLED_GLOBAL,$INSTALLED_PROJECT,$INSTALLED_AGENTS"
 
 # --- Read manifest files once ---
 PKG_JSON=""
@@ -163,7 +167,7 @@ done
 
 # --- Check find-skills availability ---
 FIND_SKILLS="false"
-if [ -d "$HOME/.claude/skills/find-skills" ]; then
+if [ -d "$HOME/.claude/skills/find-skills" ] || [ -d "$HOME/.agents/skills/find-skills" ]; then
   FIND_SKILLS="true"
 fi
 
@@ -172,6 +176,7 @@ jq -n \
   --arg detected "$DETECTED" \
   --arg installed_global "$INSTALLED_GLOBAL" \
   --arg installed_project "$INSTALLED_PROJECT" \
+  --arg installed_agents "$INSTALLED_AGENTS" \
   --arg recommended "$RECOMMENDED_SKILLS" \
   --arg suggestions "$SUGGESTIONS" \
   --argjson find_skills "$FIND_SKILLS" \
@@ -179,7 +184,8 @@ jq -n \
     detected_stack: ($detected | split(",") | map(select(. != ""))),
     installed: {
       global: ($installed_global | split(",") | map(select(. != ""))),
-      project: ($installed_project | split(",") | map(select(. != "")))
+      project: ($installed_project | split(",") | map(select(. != ""))),
+      agents: ($installed_agents | split(",") | map(select(. != "")))
     },
     recommended_skills: ($recommended | split(",") | map(select(. != ""))),
     suggestions: ($suggestions | split(",") | map(select(. != ""))),

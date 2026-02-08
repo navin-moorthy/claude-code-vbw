@@ -33,21 +33,21 @@ For each discovered skill, record:
 
 ## find-skills Bootstrap
 
-**(SKIL-06)** The `find-skills` meta-skill enables dynamic registry lookups via Skills.sh. It is checked once per session and its availability is cached.
+**(SKIL-06)** The `find-skills` meta-skill enables dynamic registry lookups via Skills.sh. Bootstrap runs during `/vbw:init` (Step 3) and during `/vbw:plan`. It is checked once per session and its availability is cached.
 
 ### Procedure
 
-1. Check if `find-skills` is installed:
+1. Check if `find-skills` is installed (check both paths, in order):
    ```bash
-   ls ~/.claude/skills/find-skills/ 2>/dev/null
+   ls ~/.claude/skills/find-skills/ 2>/dev/null || ls ~/.agents/skills/find-skills/ 2>/dev/null
    ```
-2. If **installed**: mark `find_skills_available = true` for the session. Dynamic discovery (SKIL-07) can use it.
-3. If **not installed** and `skill_suggestions` is `true`: display a brief note:
+2. If **installed** (found in either path): mark `find_skills_available = true` for the session. Dynamic discovery (SKIL-07) can use it.
+3. If **not installed** and `skill_suggestions` is `true`: offer installation via AskUserQuestion:
    ```
-   ○ Optional: Skills.sh registry not installed (curated mappings still work fine).
-     To enable dynamic skill search: npx skills add vercel-labs/skills --skill find-skills -g -y
+   The Skills.sh registry enables dynamic skill search for technologies not covered by curated mappings.
+   Would you like to install it now? (npx skills add vercel-labs/skills --skill find-skills -g -y)
    ```
-   Do not block on this. Do not present it as an error or warning. Continue with curated mappings only.
+   If the user accepts, run the install command and re-check availability. If the user declines, continue with curated mappings only. Do not present this as an error or warning.
 
 ## Stack Detection Protocol
 
@@ -75,7 +75,7 @@ A list of matched stack entries:
 
 ### When to trigger
 
-Dynamic discovery runs during `/vbw:plan` (not `/vbw:init`) for any detected technology that has **no entry** in `stack-mappings.json`. For example, if the project uses Hono or Drizzle and neither appears in curated mappings, those become dynamic search queries.
+Dynamic discovery runs during both `/vbw:init` and `/vbw:plan` for any detected technology that has **no entry** in `stack-mappings.json`. For example, if the project uses Hono or Drizzle and neither appears in curated mappings, those become dynamic search queries. During `/vbw:init`, dynamic discovery runs after stack detection and find-skills bootstrap (SKIL-06), so the full flow is: detect stack, show curated suggestions, bootstrap find-skills, run dynamic search, offer installation.
 
 ### Procedure
 

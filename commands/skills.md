@@ -67,16 +67,42 @@ If `suggestions[]` is empty and `detected_stack[]` is non-empty:
   ✓ All recommended skills for your stack are already installed.
 ```
 
-If `detected_stack[]` is empty:
+If `detected_stack[]` is empty AND `suggestions[]` is empty:
+- If `find_skills_available` is `true`, suggest example searches:
+```
+  ○ No stack detected. Try searching:
+    /vbw:skills --search react
+    /vbw:skills --search testing
+    /vbw:skills --search docker
+```
+- If `find_skills_available` is `false`:
 ```
   ○ No tech stack detected. Use --search <query> to find skills manually.
 ```
 
-### Step 4: Dynamic registry search (optional)
+### Step 4: Dynamic registry search
+
+**4a. Ensure find-skills is available**
+
+If `find_skills_available` is `false`, ask the user via AskUserQuestion:
+
+```
+○ Skills.sh Registry
+
+The Skills.sh registry has ~2000 community skills but requires the
+find-skills meta-skill for searching. Install it now?
+```
+Options: "Install (Recommended)" / "Skip"
+
+- If approved: run `npx skills add vercel-labs/skills --skill find-skills -g -y`, then continue to 4b.
+- If declined: display `○ Skipped. Use --search <query> with npx skills CLI directly.` and skip to Step 5.
+
+**4b. Determine what to search**
 
 This step runs when:
-- **--search \<query\>** was passed, OR
-- `find_skills_available` is `true` in Context JSON AND there are gaps (detected stack items with no curated mapping)
+- **--search \<query\>** was passed: search the registry for \<query\>.
+- **No --search** but `detected_stack[]` is non-empty AND there are stack items with no curated mapping: automatically search the registry for each unmapped stack item. No need for the user to pass --search.
+- **No --search** and all stack items have curated mappings: skip this step.
 
 **To search the registry**, run:
 ```bash
@@ -91,20 +117,27 @@ Parse the output and display results with `(registry)` attribution:
 └────────────────────────────────────────────┘
 ```
 
-If `find_skills_available` is `false` and `--search` was NOT passed, skip this step silently. If `--search` was passed but `npx skills` is not available, display:
+If `--search` was passed but `npx skills` is not available, display:
 ```
   ⚠ skills CLI not found. Install it with: npm install -g skills
 ```
 
 ### Step 5: Offer installation
 
-Combine all suggestions (curated + registry) into a numbered list. Ask the user using AskUserQuestion:
+Combine curated suggestions and registry results into a single list, deduplicated. Rank by relevance: curated matches first, then registry matches sorted by closest stack alignment.
+
+Ask the user using AskUserQuestion with multiSelect:
 
 ```
 Which skills would you like to install?
 ```
 
-Options: list each suggested skill as an option (up to 4, use multiSelect). Include "Skip" as an option.
+Options (max 4 due to tool limit): show each skill with its description, e.g. "skill-name — short description". Include "Skip" as the last option.
+
+If there are more than 4 combined suggestions, show the top 4 most relevant and append:
+```
+  ➜ Run /vbw:skills --search <query> for more results.
+```
 
 ### Step 6: Install selected skills
 
