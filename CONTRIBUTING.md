@@ -71,6 +71,35 @@ Less good candidates:
 4. Ensure `claude --plugin-dir .` loads without errors.
 5. Test your changes against at least one real project.
 
+## Version Management
+
+VBW keeps the version in sync across four files:
+
+| File | Field |
+|------|-------|
+| `VERSION` | Plain text, single line |
+| `.claude-plugin/plugin.json` | `.version` |
+| `.claude-plugin/marketplace.json` | `.plugins[0].version` |
+| `marketplace.json` | `.plugins[0].version` |
+
+All four **must** match at all times. Use the bump script to increment:
+
+```bash
+scripts/bump-version.sh
+```
+
+This fetches the latest remote version from GitHub, picks the higher of remote/local, increments the patch number, and writes to all four files. If the network is unavailable, it falls back to the local `VERSION` file as the baseline.
+
+To verify that all four files are in sync without bumping:
+
+```bash
+scripts/bump-version.sh --verify
+```
+
+This exits `0` if all versions match and `1` with a diff report if they diverge. Useful in CI or as a pre-commit check.
+
+**Always run `scripts/bump-version.sh` before committing version-sensitive changes.**
+
 ## Code Style
 
 - Shell scripts: bash, no external dependencies beyond `jq` and `git`
