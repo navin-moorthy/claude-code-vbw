@@ -207,21 +207,25 @@ if ! cache_fresh "$USAGE_CF" 60; then
       "https://api.anthropic.com/api/oauth/usage" 2>/dev/null)
 
     if [ -n "$USAGE_RAW" ] && echo "$USAGE_RAW" | jq -e '.five_hour' >/dev/null 2>&1; then
-      # Parse all usage data in a single jq call
+      # Parse all usage data in a single jq call (no eval — safe extraction via read)
       # utilization is already 0-100 (NOT 0-1), so just floor it
-      eval "$(echo "$USAGE_RAW" | jq -r '
-        def pct: floor;
-        def epoch: gsub("\\.[0-9]+"; "") | gsub("Z$"; "+00:00") | split("+")[0] + "Z" | fromdate;
-        "FIVE_PCT=" + ((.five_hour.utilization // 0) | pct | tostring),
-        "FIVE_EPOCH=" + ((.five_hour.resets_at // "") | if . == "" or . == null then "0" else epoch | tostring end),
-        "WEEK_PCT=" + ((.seven_day.utilization // 0) | pct | tostring),
-        "WEEK_EPOCH=" + ((.seven_day.resets_at // "") | if . == "" or . == null then "0" else epoch | tostring end),
-        "SONNET_PCT=" + ((.seven_day_sonnet.utilization // -1) | pct | tostring),
-        "EXTRA_ENABLED=" + (if .extra_usage.is_enabled == true then "1" else "0" end),
-        "EXTRA_PCT=" + ((.extra_usage.utilization // -1) | pct | tostring),
-        "EXTRA_USED_C=" + ((.extra_usage.used_credits // 0) | floor | tostring),
-        "EXTRA_LIMIT_C=" + ((.extra_usage.monthly_limit // 0) | floor | tostring)
-      ' 2>/dev/null)"
+      IFS='|' read -r FIVE_PCT FIVE_EPOCH WEEK_PCT WEEK_EPOCH SONNET_PCT \
+                      EXTRA_ENABLED EXTRA_PCT EXTRA_USED_C EXTRA_LIMIT_C <<< \
+        "$(echo "$USAGE_RAW" | jq -r '
+          def pct: floor;
+          def epoch: gsub("\\.[0-9]+"; "") | gsub("Z$"; "+00:00") | split("+")[0] + "Z" | fromdate;
+          [
+            ((.five_hour.utilization // 0) | pct),
+            ((.five_hour.resets_at // "") | if . == "" or . == null then 0 else epoch end),
+            ((.seven_day.utilization // 0) | pct),
+            ((.seven_day.resets_at // "") | if . == "" or . == null then 0 else epoch end),
+            ((.seven_day_sonnet.utilization // -1) | pct),
+            (if .extra_usage.is_enabled == true then 1 else 0 end),
+            ((.extra_usage.utilization // -1) | pct),
+            ((.extra_usage.used_credits // 0) | floor),
+            ((.extra_usage.monthly_limit // 0) | floor)
+          ] | join("|")
+        ' 2>/dev/null)"
 
       printf '%s\n' "${FIVE_PCT:-0}|${FIVE_EPOCH:-0}|${WEEK_PCT:-0}|${WEEK_EPOCH:-0}|${SONNET_PCT:--1}|${EXTRA_ENABLED:-0}|${EXTRA_PCT:--1}|${EXTRA_USED_C:-0}|${EXTRA_LIMIT_C:-0}|ok" > "$USAGE_CF"
     else
