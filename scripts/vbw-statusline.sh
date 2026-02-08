@@ -1,9 +1,9 @@
 #!/bin/bash
 # VBW Status Line for Claude Code — 4/5-Line Dashboard
-# Line 1: [VBW] Phase N/M │ Plans: done/total (N this phase) │ Effort: X │ QA: pass │ Branch: main
+# Line 1: [VBW] Phase N/M │ Plans: done/total (N this phase) │ Effort: X │ QA: pass │ Branch: main +2~3
 # Line 2: Context: ▓▓▓▓▓▓▓▓░░░░░░░░░░░░ 42% 84.0K/200K │ Tokens: 15.2K in  1.2K out │ Cache: 5.0K write  2.0K read
 # Line 3: Session: ██░░░░░░░░  6% ~2h13m │ Weekly: ███░░░░░░░ 35% ~2d 23h │ Extra: 96% $578/$600
-# Line 4: Model: Opus │ Cost: $1.42 │ Time: 12m 34s (API: 23s) │ Diff: +156 -23 │ GitHub │ CC 1.0.11
+# Line 4: Model: Opus │ Cost: $1.42 │ Time: 12m 34s (API: 23s) │ Diff: +156 -23 │ repo:branch │ CC 1.0.11
 # Line 5: Team: build-team │ researcher ◆ │ tester ○ │ dev-1 ✓ │ Tasks: 3/5  (conditional)
 
 input=$(cat)
@@ -138,7 +138,9 @@ if ! cache_fresh "$VBW_CF" 5; then
     EF=$(jq -r '.effort // "balanced"' .vbw-planning/config.json 2>/dev/null)
   if git rev-parse --git-dir >/dev/null 2>&1; then
     BR=$(git branch --show-current 2>/dev/null)
-    GH_URL=$(git remote get-url origin 2>/dev/null | sed 's|git@github.com:|https://github.com/|' | sed 's|\.git$||')
+    GH_URL=$(git remote get-url origin 2>/dev/null | sed 's|git@github.com:|https://github.com/|' | sed 's|\.git$||' | sed 's|https://[^@]*@|https://|')
+    GIT_STAGED=$(git diff --cached --numstat 2>/dev/null | wc -l | tr -d ' ')
+    GIT_MODIFIED=$(git diff --numstat 2>/dev/null | wc -l | tr -d ' ')
   fi
 
   # Plan counting
@@ -153,10 +155,10 @@ if ! cache_fresh "$VBW_CF" 5; then
     fi
   fi
 
-  printf '%s\n' "${PH:-0}|${TT:-0}|${EF}|${BR}|${PD}|${PT}|${PPD}|${QA}|${GH_URL}" > "$VBW_CF"
+  printf '%s\n' "${PH:-0}|${TT:-0}|${EF}|${BR}|${PD}|${PT}|${PPD}|${QA}|${GH_URL}|${GIT_STAGED:-0}|${GIT_MODIFIED:-0}" > "$VBW_CF"
 fi
 
-IFS='|' read -r PH TT EF BR PD PT PPD QA GH_URL < "$VBW_CF"
+IFS='|' read -r PH TT EF BR PD PT PPD QA GH_URL GIT_STAGED GIT_MODIFIED < "$VBW_CF"
 
 # --- Execution progress (cached 2s) ---
 
@@ -286,12 +288,18 @@ else
 fi
 
 # --- GitHub link (from VBW state cache) ---
+# OSC 8 clickable link: \e]8;;URL\a TEXT \e]8;;\a
+# Links to current branch tree when branch is available
 
 GH_LINK=""
 if [ -n "$GH_URL" ]; then
   GH_NAME=$(basename "$GH_URL")
-  # OSC 8 clickable link: \e]8;;URL\a TEXT \e]8;;\a
-  GH_LINK="\033]8;;${GH_URL}\a${GH_NAME}\033]8;;\a"
+  if [ -n "$BR" ]; then
+    GH_BRANCH_URL="${GH_URL}/tree/${BR}"
+    GH_LINK="\033]8;;${GH_BRANCH_URL}\a${GH_NAME}:${BR}\033]8;;\a"
+  else
+    GH_LINK="\033]8;;${GH_URL}\a${GH_NAME}\033]8;;\a"
+  fi
 fi
 
 # --- Agent activity (cached 10s) ---
@@ -350,7 +358,13 @@ elif [ -d ".vbw-planning" ]; then
 else
   L1="${C}${B}[VBW]${X} ${D}no project${X}"
 fi
-[ -n "$BR" ] && L1="$L1 ${D}│${X} Branch: $BR"
+if [ -n "$BR" ]; then
+  GIT_IND=""
+  [ "${GIT_STAGED:-0}" -gt 0 ] 2>/dev/null && GIT_IND="${G}+${GIT_STAGED}${X}"
+  [ "${GIT_MODIFIED:-0}" -gt 0 ] 2>/dev/null && GIT_IND="${GIT_IND}${Y}~${GIT_MODIFIED}${X}"
+  L1="$L1 ${D}│${X} Branch: $BR"
+  [ -n "$GIT_IND" ] && L1="$L1 $GIT_IND"
+fi
 
 # --- Line 2: context window ---
 
