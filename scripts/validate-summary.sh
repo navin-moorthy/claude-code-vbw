@@ -1,4 +1,5 @@
 #!/bin/bash
+set -u
 # PostToolUse / SubagentStop hook: Validate SUMMARY.md structure
 # Non-blocking feedback only (always exit 0)
 

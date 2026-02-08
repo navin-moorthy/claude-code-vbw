@@ -1,4 +1,5 @@
 #!/bin/bash
+set -u
 # PostToolUse hook: Validate git commit message format
 # Non-blocking feedback only (always exit 0)
 

@@ -1,4 +1,5 @@
 #!/bin/bash
+set -u
 # TeammateIdle hook: Verify teammate's work via structural completion checks
 # Exit 2 = block (keep working), Exit 0 = allow idle
 # Exit 0 on ANY error (fail-open: never block legitimate work)

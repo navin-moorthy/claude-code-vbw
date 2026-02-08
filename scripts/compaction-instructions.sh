@@ -1,4 +1,5 @@
 #!/bin/bash
+set -u
 # PreCompact hook: Inject agent-specific summarization priorities
 # Reads agent context and returns additionalContext for compaction
 

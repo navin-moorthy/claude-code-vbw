@@ -1,4 +1,5 @@
 #!/bin/bash
+set -u
 # Stop hook: Log session metrics to .vbw-planning/.session-log.jsonl
 # Non-blocking, fail-open (always exit 0)
 

@@ -1,4 +1,5 @@
 #!/bin/bash
+set -u
 # TaskCompleted hook: Verify a recent git commit exists for the completed task
 # Exit 2 = block completion, Exit 0 = allow
 # Exit 0 on ANY error (fail-open: never block legitimate work)

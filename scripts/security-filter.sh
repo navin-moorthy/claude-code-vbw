@@ -1,4 +1,5 @@
 #!/bin/bash
+set -u
 # PreToolUse hook: Block access to sensitive files
 # Exit 2 = block tool call, Exit 0 = allow
 # Fail-CLOSED: exit 2 on any parse error (never allow unvalidated input through)

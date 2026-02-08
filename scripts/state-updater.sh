@@ -1,4 +1,5 @@
 #!/bin/bash
+set -u
 # PostToolUse hook: Auto-update execution state when SUMMARY.md is written
 # Non-blocking, fail-open (always exit 0)
 

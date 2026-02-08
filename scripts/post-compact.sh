@@ -1,4 +1,5 @@
 #!/bin/bash
+set -u
 # PostCompact hook: Remind agent to re-read key files after compaction
 # Reads compaction context from stdin, detects agent role, suggests re-reads
 

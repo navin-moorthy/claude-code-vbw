@@ -1,4 +1,5 @@
 #!/bin/bash
+set -u
 # file-guard.sh — PreToolUse guard for undeclared file modifications
 # Blocks Write/Edit to files not declared in active plan's files_modified
 # Fail-open design: exit 0 on any error, exit 2 only on definitive violations

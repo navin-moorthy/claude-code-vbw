@@ -1,4 +1,5 @@
 #!/bin/bash
+set -u
 # UserPromptSubmit hook: Pre-flight validation for VBW commands
 # Non-blocking warnings only (always exit 0)
 

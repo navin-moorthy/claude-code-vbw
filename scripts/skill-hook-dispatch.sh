@@ -1,4 +1,5 @@
 #!/bin/bash
+set -u
 # skill-hook-dispatch.sh — Runtime skill-hook dispatcher
 # Reads config.json skill_hooks at runtime and invokes matching skill scripts
 # Fail-open design: exit 0 on any error, never block legitimate work
