@@ -79,7 +79,7 @@ Most Claude Code plugins were built for the subagent era, one main session spawn
 
 - **Agent Teams for real parallelism.** `/vbw:execute` creates a team of Dev teammates that execute tasks concurrently, each in their own context window. `/vbw:map` runs 4 Scout teammates in parallel to analyze your codebase. This isn't "spawn a subagent and wait" -- it's coordinated teamwork with a shared task list and direct inter-agent communication.
 
-- **Native hooks for continuous verification.** 8 hook events run automatically during builds -- validating writes, checking commits, gating quality, blocking access to sensitive files. No more spawning a QA agent after every task. The platform enforces it, not the prompt.
+- **Native hooks for continuous verification.** 12 hooks across 7 event types run automatically -- validating SUMMARY.md structure, checking commit format, gating task completion, blocking access to sensitive files, and enforcing plan file boundaries. No more spawning a QA agent after every task. The platform enforces it, not the prompt.
 
 - **Platform-enforced tool permissions.** Each agent has `tools`/`disallowedTools` in their YAML frontmatter. Scout and QA literally cannot write files. Dev can't be tricked into reading your `.env`. It's enforced by Claude Code itself, not by instructions an agent might ignore during compaction.
 
@@ -91,11 +91,11 @@ Agent Teams are [experimental with known limitations](https://code.claude.com/do
 
 - **Session resumption.** Agent Teams teammates don't survive `/resume`. VBW's `/vbw:pause` saves full session state, and `/vbw:resume` creates a fresh team from saved state -- detecting completed tasks via SUMMARY.md and git log, then assigning only remaining work.
 
-- **Task status lag.** Teammates sometimes forget to mark tasks complete. VBW's `TaskCompleted` hook verifies every task closure has a corresponding atomic commit. The `TeammateIdle` hook runs a QA gate before any teammate goes idle.
+- **Task status lag.** Teammates sometimes forget to mark tasks complete. VBW's `TaskCompleted` hook verifies task-related commits exist via keyword matching. The `TeammateIdle` hook runs a structural completion check (SUMMARY.md or conventional commit format) before any teammate goes idle.
 
-- **Shutdown coordination.** VBW's team lead handles graceful shutdown sequencing -- no orphaned teammates, no dangling task lists.
+- **Shutdown coordination.** Claude Code's platform handles teammate cleanup when sessions end. VBW's hooks ensure verification runs before teammates go idle.
 
-- **File conflicts.** Plans decompose work into tasks with explicit file ownership. Dev teammates operate on disjoint file sets by design.
+- **File conflicts.** Plans decompose work into tasks with explicit file ownership. Dev teammates operate on disjoint file sets by design, enforced at runtime by the `file-guard.sh` hook that blocks writes to files not declared in the active plan.
 
 Agent Teams ship with seven known limitations. VBW solves them. The eighth... that you're using AI to write software doesn't need a fix. It needs an intervention.
 
@@ -455,22 +455,37 @@ Here's when each one shows up to work:
   │(subagt)  │   (scope creep is for amateurs)                         │ verify
   └──────────┘                                                         │
                                                                        ▼
-  HOOKS (continuous)                                             VERIFICATION.md
-  ┌──────────────────────────────────────────────────────────────────────────┐
-  │  PostToolUse ──── Validates writes and commits continuously              │
-  │  TeammateIdle ─── QA gate before teammate goes idle                      │
-  │  TaskCompleted ── Verifies atomic commit exists                          │
-  │  PreToolUse ───── Blocks access to sensitive files (.env, keys)          │
-  └──────────────────────────────────────────────────────────────────────────┘
+  HOOKS (7 event types, 12 handlers)                               VERIFICATION.md
+  ┌───────────────────────────────────────────────────────────────────────────────┐
+  │  Verification                                                                 │
+  │    PostToolUse ──── Validates SUMMARY.md on write, checks commit format,      │
+  │                     dispatches skill hooks                                     │
+  │    SubagentStop ─── Validates SUMMARY.md structure on subagent completion      │
+  │    TeammateIdle ─── Structural completion gate (SUMMARY.md or commit format)   │
+  │    TaskCompleted ── Verifies task-related commit via keyword matching          │
+  │                                                                               │
+  │  Security                                                                     │
+  │    PreToolUse ──── Blocks sensitive file access (.env, keys), enforces plan    │
+  │                    file boundaries, dispatches skill hooks                     │
+  │                                                                               │
+  │  Lifecycle                                                                    │
+  │    SessionStart ── Detects project state, checks for plugin updates           │
+  │    PreCompact ──── Injects agent-specific compaction priorities                │
+  └───────────────────────────────────────────────────────────────────────────────┘
 
-  ┌──────────────────────────────────────────────────────────────────────────┐
-  │  PERMISSION MODEL                                                        │
-  │                                                                          │
-  │  Scout, QA ──────── Read-only. Can look, can't touch.                    │
-  │  Architect ──────── Writes plans and roadmaps. Not code. Ever.           │
-  │  Lead ──────────── Reads + writes plans. The middle manager.             │
-  │  Dev, Debugger ──── Full access. The ones you actually worry about.      │
-  └──────────────────────────────────────────────────────────────────────────┘
+  ┌───────────────────────────────────────────────────────────────────────────────┐
+  │  PERMISSION MODEL                                                             │
+  │                                                                               │
+  │  Scout ─────────── True read-only (plan mode). Can look, can't touch.         │
+  │  QA ───────────── Read + Bash. Can verify, can't write. The auditor.          │
+  │  Architect ─────── Edit/Bash blocked by platform. Write limited to plans      │
+  │                    by instruction. Writes roadmaps, not code. Mostly.         │
+  │  Lead ─────────── Read, Write, Bash, WebFetch, Task. The middle manager.     │
+  │  Dev, Debugger ─── Full access. The ones you actually worry about.            │
+  │                                                                               │
+  │  Platform-enforced: tools / disallowedTools (cannot be overridden)            │
+  │  Instruction-enforced: behavioral constraints in agent prompts                │
+  └───────────────────────────────────────────────────────────────────────────────┘
 ```
 
 <br>
@@ -543,7 +558,7 @@ VBW leverages three Opus 4.6 features that make the whole thing work:
 
 **Agent Teams** -- `/vbw:execute` and `/vbw:map` create teams of parallel agents. Dev teammates execute tasks concurrently, each with their own context window. The session acts as team lead. This replaces the old sequential wave system.
 
-**Native Hooks** -- 8 hook events provide continuous verification without agent overhead. PostToolUse validates writes and commits. TeammateIdle gates quality. TaskCompleted verifies atomic commits exist. PreToolUse blocks access to sensitive files. No more spawning QA agents after every wave.
+**Native Hooks** -- 12 hooks across 7 event types provide continuous verification without agent overhead. PostToolUse validates SUMMARY.md structure and commit format. TeammateIdle gates task completion via structural checks. TaskCompleted verifies task-related commits via keyword matching. PreToolUse blocks sensitive file access and enforces plan boundaries. SessionStart detects project state. PreCompact preserves agent-specific context. No more spawning QA agents after every wave.
 
 **Tool Permissions** -- Each agent has native `tools`/`disallowedTools` in their YAML frontmatter. Scout and QA literally cannot write files. It's enforced by the platform, not by instructions that an agent might ignore.
 
