@@ -1,9 +1,9 @@
 #!/bin/bash
 # VBW Status Line for Claude Code — 4/5-Line Dashboard
-# Line 1: [VBW] Phase N/M │ Plans: done/total (N this phase) │ Effort: X │ QA: pass │ Branch: main +2~3
+# Line 1: [VBW] Phase N/M │ Plans: done/total (N this phase) │ Effort: X │ QA: pass │ repo:branch +2~3 ↑5
 # Line 2: Context: ▓▓▓▓▓▓▓▓░░░░░░░░░░░░ 42% 84.0K/200K │ Tokens: 15.2K in  1.2K out │ Cache: 5.0K write  2.0K read
-# Line 3: Session: ██░░░░░░░░  6% ~2h13m │ Weekly: ███░░░░░░░ 35% ~2d 23h │ Extra: 96% $578/$600
-# Line 4: Model: Opus │ Time: 12m 34s (API: 23s) │ Diff: +156 -23 │ repo:branch │ VBW 1.0.67 │ CC 1.0.11
+# Line 3: Session: ██████████████████░░  6% ~2h13m │ Weekly: ███████░░░░░░░░░░░░░ 35% ~2d 23h │ Extra: ████████████████████ 96% $578/$600
+# Line 4: Model: Opus │ Time: 12m 34s (API: 23s) │ Diff: +156 -23 │ VBW 1.0.67 │ CC 1.0.11
 # Line 5: Team: build-team │ researcher ◆ │ tester ○ │ dev-1 ✓ │ Tasks: 3/5  (conditional)
 
 input=$(cat)
@@ -46,6 +46,8 @@ progress_bar() {
   local pct="$1" width="$2"
   local filled=$((pct * width / 100))
   [ "$filled" -gt "$width" ] && filled="$width"
+  # Guarantee at least 1 block for any non-zero percentage
+  [ "$pct" -gt 0 ] && [ "$filled" -eq 0 ] && filled=1
   local empty=$((width - filled))
   local color
   if [ "$pct" -ge 80 ]; then color="$R"
@@ -143,6 +145,7 @@ if ! cache_fresh "$VBW_CF" 5; then
     GH_URL=$(git remote get-url origin 2>/dev/null | sed 's|git@github.com:|https://github.com/|' | sed 's|\.git$||' | sed 's|https://[^@]*@|https://|')
     GIT_STAGED=$(git diff --cached --numstat 2>/dev/null | wc -l | tr -d ' ')
     GIT_MODIFIED=$(git diff --numstat 2>/dev/null | wc -l | tr -d ' ')
+    GIT_AHEAD=$(git rev-list --count @{u}..HEAD 2>/dev/null || echo 0)
   fi
 
   # Plan counting
@@ -157,10 +160,10 @@ if ! cache_fresh "$VBW_CF" 5; then
     fi
   fi
 
-  printf '%s\n' "${PH:-0}|${TT:-0}|${EF}|${BR}|${PD}|${PT}|${PPD}|${QA}|${GH_URL}|${GIT_STAGED:-0}|${GIT_MODIFIED:-0}" > "$VBW_CF" 2>/dev/null
+  printf '%s\n' "${PH:-0}|${TT:-0}|${EF}|${BR}|${PD}|${PT}|${PPD}|${QA}|${GH_URL}|${GIT_STAGED:-0}|${GIT_MODIFIED:-0}|${GIT_AHEAD:-0}" > "$VBW_CF" 2>/dev/null
 fi
 
-[ -O "$VBW_CF" ] && IFS='|' read -r PH TT EF BR PD PT PPD QA GH_URL GIT_STAGED GIT_MODIFIED < "$VBW_CF"
+[ -O "$VBW_CF" ] && IFS='|' read -r PH TT EF BR PD PT PPD QA GH_URL GIT_STAGED GIT_MODIFIED GIT_AHEAD < "$VBW_CF"
 
 # --- Execution progress (cached 2s) ---
 
@@ -268,16 +271,16 @@ if [ "$USAGE_DATA" != "noauth" ]; then
     WEEK_REM=$(countdown "$WEEK_EPOCH")
 
     # Session (5-hour rolling window)
-    USAGE_LINE="Session: $(progress_bar "${FIVE_PCT:-0}" 10) ${FIVE_PCT:-0}%"
+    USAGE_LINE="Session: $(progress_bar "${FIVE_PCT:-0}" 20) ${FIVE_PCT:-0}%"
     [ -n "$FIVE_REM" ] && USAGE_LINE="$USAGE_LINE $FIVE_REM"
 
     # Weekly (7-day rolling window, all models)
-    USAGE_LINE="$USAGE_LINE ${D}│${X} Weekly: $(progress_bar "${WEEK_PCT:-0}" 10) ${WEEK_PCT:-0}%"
+    USAGE_LINE="$USAGE_LINE ${D}│${X} Weekly: $(progress_bar "${WEEK_PCT:-0}" 20) ${WEEK_PCT:-0}%"
     [ -n "$WEEK_REM" ] && USAGE_LINE="$USAGE_LINE $WEEK_REM"
 
     # Sonnet (7-day Sonnet-specific) — only show if present
     if [ "${SONNET_PCT:--1}" -ge 0 ] 2>/dev/null; then
-      USAGE_LINE="$USAGE_LINE ${D}│${X} Sonnet: $(progress_bar "${SONNET_PCT}" 10) ${SONNET_PCT}%"
+      USAGE_LINE="$USAGE_LINE ${D}│${X} Sonnet: $(progress_bar "${SONNET_PCT}" 20) ${SONNET_PCT}%"
     fi
 
     # Extra usage (monthly spend) — only show if enabled
@@ -285,7 +288,7 @@ if [ "$USAGE_DATA" != "noauth" ]; then
       # Credits are in cents — divide by 100 for dollars
       EXTRA_USED_D=$(awk "BEGIN { printf \"%.2f\", ${EXTRA_USED_C:-0} / 100 }")
       EXTRA_LIMIT_D=$(awk "BEGIN { printf \"%.2f\", ${EXTRA_LIMIT_C:-0} / 100 }")
-      USAGE_LINE="$USAGE_LINE ${D}│${X} Extra: $(progress_bar "${EXTRA_PCT}" 5) ${EXTRA_PCT}% \$${EXTRA_USED_D}/\$${EXTRA_LIMIT_D}"
+      USAGE_LINE="$USAGE_LINE ${D}│${X} Extra: $(progress_bar "${EXTRA_PCT}" 20) ${EXTRA_PCT}% \$${EXTRA_USED_D}/\$${EXTRA_LIMIT_D}"
     fi
   else
     USAGE_LINE="${D}Limits: fetch failed (retry in 60s)${X}"
@@ -370,8 +373,13 @@ if [ -n "$BR" ]; then
   GIT_IND=""
   [ "${GIT_STAGED:-0}" -gt 0 ] 2>/dev/null && GIT_IND="${G}+${GIT_STAGED}${X}"
   [ "${GIT_MODIFIED:-0}" -gt 0 ] 2>/dev/null && GIT_IND="${GIT_IND}${Y}~${GIT_MODIFIED}${X}"
-  L1="$L1 ${D}│${X} Branch: $BR"
+  if [ -n "$GH_LINK" ]; then
+    L1="$L1 ${D}│${X} ${GH_LINK}"
+  else
+    L1="$L1 ${D}│${X} $BR"
+  fi
   [ -n "$GIT_IND" ] && L1="$L1 $GIT_IND"
+  [ "${GIT_AHEAD:-0}" -gt 0 ] 2>/dev/null && L1="$L1 ${C}↑${GIT_AHEAD}${X}"
 fi
 
 # --- Line 2: context window ---
@@ -390,7 +398,6 @@ L4="Model: ${D}${MODEL}${X}"
 L4="$L4 ${D}│${X} Time: ${DUR_FMT} (API: ${API_DUR_FMT})"
 L4="$L4 ${D}│${X} Diff: ${G}+${ADDED}${X} ${R}-${REMOVED}${X}"
 [ -n "$AGENT_LINE" ] && L4="$L4 ${D}│${X} ${AGENT_LINE}"
-[ -n "$GH_LINK" ] && L4="$L4 ${D}│${X} ${GH_LINK}"
 L4="$L4 ${D}│${X} ${D}VBW ${_VER:-?}${X} ${D}│${X} ${D}CC ${VER}${X}"
 
 # --- Output ---

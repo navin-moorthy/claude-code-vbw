@@ -2,6 +2,23 @@
 
 All notable changes to VBW will be documented in this file.
 
+## [1.0.83] - 2026-02-09
+
+### Added
+
+- **`/vbw:release` pre-release audit** — new audit section runs after guards but before mutations. Finds commits since last release, checks changelog coverage against them, detects stale README counts (command count, hook count), presents branded findings with `✓`/`⚠` symbols, and offers to generate missing changelog entries or fix README numbers. Skippable with `--skip-audit`. Respects `--dry-run`.
+- **`/vbw:release` git tagging** — creates annotated git tag `v{version}` on the release commit.
+- **`/vbw:release` GitHub release** — creates a GitHub release via `gh release create` with changelog notes extracted from the versioned section. Gracefully warns if `gh` is unavailable. Skipped when `--no-push`.
+- **Statusline local commit count** — `↑N` indicator (cyan) on Line 1 shows commits ahead of upstream.
+
+### Changed
+
+- **Statusline Line 1 consolidates all git/GitHub info** — clickable `repo:branch` link moved from Line 4 to Line 1, replacing the duplicate `Branch: X` field. Staged, modified, and ahead-of-upstream indicators all on Line 1.
+- **Statusline Line 4 cleaned up** — removed duplicate GitHub link (now on Line 1).
+- **Statusline progress bars fixed and unified** — all usage bars (Session, Weekly, Sonnet, Extra) now width 20, matching the Context bar. Previously Sonnet was width 10 and Extra was width 5, causing bars to render empty at low percentages (e.g., 7% × 10 = 0 filled blocks). Added minimum-1-block guarantee for any non-zero percentage.
+
+---
+
 ## [1.0.82] - 2026-02-09
 
 ### Fixed

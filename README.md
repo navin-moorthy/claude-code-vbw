@@ -327,7 +327,7 @@ When all phases are built, archive the work. VBW runs a completion audit, archiv
 /vbw:release
 ```
 
-Ready to publish? This bumps the version, finalizes the changelog, commits, and pushes — all in one step. Supports `--dry-run` if you want to preview first, `--major` or `--minor` for non-patch bumps.
+Ready to publish? This runs a pre-release audit first — checking that your changelog covers all commits since the last release and that README counts aren't stale. If anything's missing, it offers to generate entries for your review. Then it bumps the version, finalizes the changelog, creates an annotated git tag, commits, pushes, and creates a GitHub release with the changelog notes. Supports `--dry-run` to preview, `--skip-audit` to bypass the audit, `--major` or `--minor` for non-patch bumps.
 
 That's it. `init` → `implement` (repeat) → `archive` → `release`. Four commands for an entire development lifecycle.
 
@@ -342,6 +342,16 @@ Same flow, one difference:
 VBW detects the existing codebase and auto-chains everything: `/vbw:map` launches 4 Scout teammates to analyze your code across tech stack, architecture, quality, and concerns. Skill suggestions are based on what's actually in your codebase, not just which manifest files exist. Then `/vbw:implement` runs automatically with full codebase awareness. One command, four workflows, zero manual sequencing.
 
 From there, it's the same loop: `/vbw:implement` until done, `/vbw:archive`, `/vbw:release`.
+
+### Coming back to a project
+
+```
+/vbw:resume
+```
+
+Closed your terminal? Switched branches? Came back after a weekend of pretending you have hobbies? `/vbw:resume` reads ground truth directly from `.vbw-planning/` -- STATE.md, ROADMAP.md, plans, summaries -- and rebuilds your full project context. No prior `/vbw:pause` needed. It detects interrupted builds, reconciles stale execution state, and tells you exactly what to do next. One command, full situational awareness, zero guessing.
+
+**Do not use `/clear`.** Opus 4.6's auto-compaction is significantly better than nuking your context window. Compaction preserves critical context while freeing space; `/clear` destroys everything and leaves you starting from scratch. If you accidentally `/clear`, run `/vbw:resume` immediately to restore project context from ground truth.
 
 > **For advanced users:** The [full command reference](#commands) below has 27 commands for granular control — `/vbw:plan` and `/vbw:execute` to separate planning from building, `/vbw:qa` for on-demand verification, `/vbw:debug` for systematic bug investigation, `/vbw:discuss` for pre-planning context gathering, and more. But you never *need* them. `/vbw:implement` handles the entire lifecycle on its own.
 
@@ -364,7 +374,7 @@ These are the commands you'll use every day. This is the job now.
 | `/vbw:plan [phase]` | Plan a phase. The Lead agent researches context, decomposes work into tasks grouped by wave, and self-reviews the plan. Produces PLAN.md files with YAML frontmatter. Accepts `--effort` flag (thorough/balanced/fast/turbo). Phase is auto-detected when omitted. |
 | `/vbw:execute [phase]` | Execute a planned phase. Creates an Agent Team with Dev teammates for parallel execution with per-plan dependency wiring. At Thorough effort, Devs enter plan-approval mode before writing code. Atomic commits per task. Continuous QA via hooks. Produces SUMMARY.md. Resumes from last checkpoint if interrupted. Phase is auto-detected when omitted. |
 | `/vbw:archive` | Close out completed work. Runs audit, archives state to `.vbw-planning/milestones/`, tags the git release, and updates project docs. |
-| `/vbw:release` | Bump version, finalize changelog, commit, and push. Runs `bump-version.sh` across all 4 version files, renames `[Unreleased]` to the new version in CHANGELOG.md, commits, and pushes. Supports `--dry-run`, `--no-push`, `--major`, `--minor`. |
+| `/vbw:release` | Bump version, finalize changelog, tag, commit, push, and create a GitHub release. Runs a pre-release audit that checks changelog completeness against commits since last release and detects stale README counts, offering to fix issues before shipping. Runs `bump-version.sh` across all 4 version files, renames `[Unreleased]` to the new version in CHANGELOG.md, creates an annotated git tag, pushes, and creates a GitHub release with changelog notes via `gh`. Supports `--dry-run`, `--no-push`, `--major`, `--minor`, `--skip-audit`. |
 
 Phase numbers are optional -- when omitted, VBW auto-detects the next phase based on artifact state.
 
