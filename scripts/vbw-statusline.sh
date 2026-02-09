@@ -446,6 +446,106 @@ else
   L4="$L4 ${D}│${X} ${D}VBW ${_VER:-?}${X} ${D}│${X} ${D}CC ${VER}${X}"
 fi
 
+# --- Line 5: Economy (per-agent cost attribution) ---
+
+L5=""
+if [ -f "$LEDGER_FILE" ] && jq empty "$LEDGER_FILE" 2>/dev/null; then
+  # Read ledger entries as "agent cents" pairs, sorted by cents descending
+  ECON_ENTRIES=$(jq -r 'to_entries | sort_by(-.value) | .[] | "\(.key) \(.value)"' "$LEDGER_FILE" 2>/dev/null)
+  ECON_TOTAL_CENTS=0
+  ECON_COUNT=0
+  ECON_TOP=""
+  ECON_OTHER_CENTS=0
+
+  # First pass: compute total
+  while IFS=' ' read -r _ea _ec; do
+    [ -z "$_ea" ] && continue
+    ECON_TOTAL_CENTS=$(( ECON_TOTAL_CENTS + _ec ))
+  done <<< "$ECON_ENTRIES"
+
+  if [ "$ECON_TOTAL_CENTS" -gt 0 ]; then
+    # Agent color function
+    _agent_color() {
+      case "$1" in
+        dev)       printf '\033[32m' ;;  # Green
+        lead)      printf '\033[36m' ;;  # Cyan
+        qa)        printf '\033[33m' ;;  # Yellow
+        scout)     printf '\033[34m' ;;  # Blue
+        debugger)  printf '\033[31m' ;;  # Red
+        architect) printf '\033[35m' ;;  # Magenta
+        *)         printf '\033[2m'  ;;  # Dim (other)
+      esac
+    }
+
+    # Second pass: build top-4 display, group rest into Other
+    while IFS=' ' read -r _ea _ec; do
+      [ -z "$_ea" ] && continue
+      ECON_COUNT=$((ECON_COUNT + 1))
+      if [ "$ECON_COUNT" -le 4 ]; then
+        _ac=$(_agent_color "$_ea")
+        # Format agent cost as dollars
+        _ad=$(( _ec / 100 )); _af=$(( _ec % 100 ))
+        _cost_str=$(printf "\$%d.%02d" "$_ad" "$_af")
+        # Percentage (only when total > $0.05 = 5 cents)
+        _pct_str=""
+        if [ "$ECON_TOTAL_CENTS" -gt 5 ]; then
+          _pct=$(( _ec * 100 / ECON_TOTAL_CENTS ))
+          _pct_str=" (${_pct}%)"
+        fi
+        # Capitalize first letter of agent name for display
+        _display_name="$(echo "${_ea:0:1}" | tr '[:lower:]' '[:upper:]')${_ea:1}"
+        _entry="${_ac}${_display_name}${X} ${_cost_str}${_pct_str}"
+        if [ -z "$ECON_TOP" ]; then
+          ECON_TOP="$_entry"
+        else
+          ECON_TOP="$ECON_TOP ${D}│${X} $_entry"
+        fi
+      else
+        ECON_OTHER_CENTS=$(( ECON_OTHER_CENTS + _ec ))
+      fi
+    done <<< "$ECON_ENTRIES"
+
+    # Append grouped "Other" if any overflow agents
+    if [ "$ECON_OTHER_CENTS" -gt 0 ]; then
+      _ad=$(( ECON_OTHER_CENTS / 100 )); _af=$(( ECON_OTHER_CENTS % 100 ))
+      _cost_str=$(printf "\$%d.%02d" "$_ad" "$_af")
+      _pct_str=""
+      if [ "$ECON_TOTAL_CENTS" -gt 5 ]; then
+        _pct=$(( ECON_OTHER_CENTS * 100 / ECON_TOTAL_CENTS ))
+        _pct_str=" (${_pct}%)"
+      fi
+      ECON_TOP="$ECON_TOP ${D}│${X} ${D}Other${X} ${_cost_str}${_pct_str}"
+    fi
+
+    # Cache hit rate
+    TOTAL_INPUT=$((IN_TOK + CACHE_W + CACHE_R))
+    CACHE_HIT_PCT=0
+    if [ "$TOTAL_INPUT" -gt 0 ]; then
+      CACHE_HIT_PCT=$(( CACHE_R * 100 / TOTAL_INPUT ))
+    fi
+    # Color cache hit: green if >= 70, yellow if >= 40, red otherwise
+    if [ "$CACHE_HIT_PCT" -ge 70 ]; then CACHE_COLOR="$G"
+    elif [ "$CACHE_HIT_PCT" -ge 40 ]; then CACHE_COLOR="$Y"
+    else CACHE_COLOR="$R"
+    fi
+
+    # $/line metric
+    TOTAL_LINES=$((ADDED + REMOVED))
+    CPL_STR=""
+    if [ "$TOTAL_LINES" -gt 0 ]; then
+      # Cost per line in millicents for precision: total_cents * 10 / lines
+      CPL_TENTHS=$(( ECON_TOTAL_CENTS * 10 / TOTAL_LINES ))
+      CPL_D=$(( CPL_TENTHS / 1000 ))
+      CPL_F=$(( CPL_TENTHS % 1000 ))
+      CPL_STR=$(printf "\$%d.%03d/line" "$CPL_D" "$CPL_F")
+    fi
+
+    L5="Economy: ${ECON_TOP}"
+    L5="$L5 ${D}│${X} Cache: ${CACHE_COLOR}${CACHE_HIT_PCT}% hit${X}"
+    [ -n "$CPL_STR" ] && L5="$L5 ${D}│${X} ${CPL_STR}"
+  fi
+fi
+
 # --- Output ---
 
 printf '%b\n' "$L1"
