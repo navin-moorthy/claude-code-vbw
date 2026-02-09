@@ -1,6 +1,6 @@
 ---
 name: plan
-description: Plan a phase by spawning the Lead agent for research, decomposition, and self-review.
+description: "Scope new work or plan a specific phase. No args with no phases starts scoping; otherwise plans the next unplanned phase."
 argument-hint: [phase-number] [--effort=thorough|balanced|fast|turbo]
 allowed-tools: Read, Write, Edit, Bash, Glob, Grep, WebFetch
 ---
@@ -26,12 +26,85 @@ Phase directories:
 !`ls .vbw-planning/phases/ 2>/dev/null || echo "No phases directory"`
 ```
 
+Active milestone:
+```
+!`cat .vbw-planning/ACTIVE 2>/dev/null || echo "NO_ACTIVE_MILESTONE"`
+```
+
 Codebase map staleness:
 ```
 !`bash -c 'f=$(ls -1 "$HOME"/.claude/plugins/cache/vbw-marketplace/vbw/*/scripts/map-staleness.sh 2>/dev/null | sort -V | tail -1); [ -f "$f" ] && exec bash "$f" || echo "status: no_script"'`
 ```
 
-## Phase Auto-Detection
+## Mode Detection
+
+Resolve the phases directory first:
+- If `.vbw-planning/ACTIVE` exists, read its contents for the milestone slug and use `.vbw-planning/{milestone-slug}/phases/`
+- Otherwise use `.vbw-planning/phases/`
+
+Evaluate in order. The FIRST matching condition determines the mode:
+
+| # | Condition | Mode |
+|---|-----------|------|
+| 1 | $ARGUMENTS contains an integer phase number | Phase Planning Mode (skip to Phase Auto-Detection with that number) |
+| 2 | No phase directories exist in the resolved phases path (empty or missing) | Scoping Mode |
+| 3 | Phase directories exist | Phase Planning Mode (existing behavior via Phase Auto-Detection) |
+
+## Scoping Mode
+
+> Triggered when $ARGUMENTS has no phase number AND no phase directories exist.
+
+### Scoping Guard
+
+1. **Not initialized:** If .vbw-planning/ doesn't exist, STOP: "Run /vbw:init first."
+2. **No project:** If .vbw-planning/PROJECT.md doesn't exist or contains template placeholder `{project-description}`, STOP: "No project defined. Run /vbw:implement to set up your project."
+
+### Scoping Steps
+
+**Step S1: Load project context**
+
+Read `.vbw-planning/PROJECT.md` and `.vbw-planning/REQUIREMENTS.md` to understand the project. If `.vbw-planning/codebase/` exists, read INDEX.md and ARCHITECTURE.md for codebase context.
+
+**Step S2: Gather scope**
+
+If $ARGUMENTS provided (excluding flags like --effort), use as scope description. Otherwise ask:
+
+"What do you want to build next? Describe the work you want to accomplish."
+
+If REQUIREMENTS.md has uncovered requirements (not yet mapped to phases), present them as suggestions.
+
+**Step S3: Decompose into phases**
+
+Based on the user's answer and existing requirements:
+1. Propose 3-5 phases with name, goal, and success criteria
+2. Each phase should be independently plannable and executable
+3. Map requirements (REQ-IDs) to phases where applicable
+
+**Step S4: Write roadmap and create phase directories**
+
+Update ROADMAP.md with the proposed phases. Create phase directories in the resolved phases path (`.vbw-planning/phases/{NN}-{slug}/` for each phase).
+
+**Step S5: Update state**
+
+Update STATE.md: set position to Phase 1, status to "Pending planning".
+
+**Step S6: Transition**
+
+Announce scoping complete and re-evaluate. Since phases now exist, announce readiness to plan:
+
+```
+Scoping complete. {N} phases created.
+
+Next Up
+  /vbw:plan -- Plan the first phase
+  /vbw:implement -- Plan and execute the first phase
+```
+
+STOP here. Do NOT auto-continue to phase planning. The scoping flow is complete -- the user decides the next action.
+
+## Phase Planning Mode
+
+> Reached when Mode Detection routes to Phase Planning Mode (either explicit phase number or phases exist).
 
 If `$ARGUMENTS` does not contain an integer phase number:
 
@@ -44,7 +117,7 @@ If `$ARGUMENTS` does not contain an integer phase number:
 ## Guard
 
 1. **Not initialized:** If .vbw-planning/ doesn't exist, STOP: "Run /vbw:init first."
-2. **No roadmap:** If .vbw-planning/ROADMAP.md doesn't exist or still contains template placeholders, STOP: "No roadmap found. Run /vbw:new to define your project."
+2. **No roadmap:** If .vbw-planning/ROADMAP.md doesn't exist or still contains template placeholders, STOP: "No roadmap found. Run /vbw:implement to set up your project."
 3. **Phase not in roadmap:** If phase {N} doesn't exist in ROADMAP.md, STOP: "Phase {N} not found in roadmap."
 4. **Already planned:** If phase has PLAN.md files with SUMMARY.md files, WARN: "Phase {N} already has completed plans. Re-planning preserves existing plans with .bak extension."
 
@@ -118,6 +191,7 @@ Display using `${CLAUDE_PLUGIN_ROOT}/references/vbw-brand-essentials.md`:
 
 ➜ Next Up
   /vbw:execute {N} -- Execute this phase
+  /vbw:implement {N} -- Plan and execute (if using implement workflow)
 ```
 
 ## Output Format
