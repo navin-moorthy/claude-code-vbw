@@ -9,7 +9,18 @@ All notable changes to VBW will be documented in this file.
 - **Autonomy levels** — new `autonomy` config setting with 4 levels: `cautious` (stops between plan and execute, plan approval at Thorough+Balanced), `standard` (current default behavior), `confident` (skips "already complete" confirmations, disables plan approval), `dangerously-vibe` (loops ALL phases in a single `/vbw:implement`, no confirmations, no plan approval — only error guards stop). Configured via `/vbw:config` or `/vbw:config autonomy <level>`. Default: `dangerously-vibe`.
 - **Autonomy-effort interaction in EFRT-07** — plan approval gate now respects autonomy overrides: `cautious` expands plan approval to Balanced effort, `confident`/`dangerously-vibe` disable it entirely regardless of effort level.
 - **Full Autonomy Levels section in README** — gate behavior table, per-level descriptions, and effort interaction docs.
-- **Quick Tutorial rewrite** — emphasizes the implement-only flow (`init → implement → archive → release`), removed `/vbw:status` from tutorial, added `/vbw:release`, added advanced user callout to full command reference.
+- **CLAUDE.md** — project-level instructions file for VBW's own development (rules, key decisions, installed skills, learned patterns, state).
+- **Lead agent progress display** — `vbw-lead.md` now emits `◆`/`✓` progress lines at each stage (Research, Decompose, Self-Review, Output) and per-plan confirmation lines.
+- **Plan command progress display** — `plan.md` shows phase banner, effort level, and Lead agent lifecycle (`Spawning...`, `✓ complete`, `Validating...`) during planning.
+
+### Changed
+
+- **`/vbw:resume` rewritten as ground-truth restoration** — no longer requires `/vbw:pause` first. Reads STATE.md, ROADMAP.md, PLAN.md, SUMMARY.md, and `.execution-state.json` directly. Computes phase progress, detects interrupted builds, and presents a full context restoration dashboard with project name, core value, decisions, todos, blockers, and a smart Next Up block. RESUME.md from `/vbw:pause` is consumed as bonus session notes if present.
+- **`/vbw:pause` simplified** — reduced to a lightweight note-taking command. Removed state gathering (STATE.md, ROADMAP.md scanning) since state auto-persists in `.vbw-planning/`. Now just writes user notes to RESUME.md. Description updated: "Save session notes for next time (state auto-persists)."
+- **`/vbw:help` table descriptions** — pause row updated to "Save session notes for next time (state auto-persists)", resume row updated to "Restore project context from .vbw-planning/ state".
+- **README flow diagram** — rewritten for v2 state machine architecture. Greenfield path shows auto-chain to `/vbw:implement`. Central hub shows 5-state detection. Granular alternatives (`/vbw:discuss`, `/vbw:plan`, `/vbw:execute`) shown as optional.
+- **README Quick Tutorial** — rewritten to emphasize implement-only flow (`init → implement → archive → release`). Removed `/vbw:status` from tutorial, added `/vbw:release`, added advanced user callout pointing to full 27-command reference.
+- **`/vbw:audit` description** — fixed stale "milestone for shipping readiness" to "completion readiness" in frontmatter and help table.
 
 ---
 
