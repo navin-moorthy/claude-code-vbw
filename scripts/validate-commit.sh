@@ -3,6 +3,11 @@ set -u
 # PostToolUse hook: Validate git commit message format
 # Non-blocking feedback only (always exit 0)
 
+# Require jq for JSON output — fail-silent if missing (non-blocking hook)
+if ! command -v jq &>/dev/null; then
+  exit 0
+fi
+
 INPUT=$(cat)
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // ""')
 
@@ -34,32 +39,18 @@ if ! echo "$MSG" | grep -qE "^($VALID_TYPES)\(.+\): .+"; then
   }'
 fi
 
-# Version bump warning (VBW plugin development only)
-if [ -f ".claude-plugin/plugin.json" ]; then
+# Version sync warning (VBW plugin development only)
+if [ -f ".claude-plugin/plugin.json" ] && [ -f "./scripts/bump-version.sh" ]; then
   PLUGIN_NAME=$(jq -r '.name // ""' .claude-plugin/plugin.json 2>/dev/null)
   if [ "$PLUGIN_NAME" = "vbw" ]; then
-    STAGED=$(git diff --cached --name-only 2>/dev/null)
-    if [ -n "$STAGED" ]; then
-      HAS_NON_VERSION=false
-      HAS_VERSION=false
-      while IFS= read -r f; do
-        [ -z "$f" ] && continue
-        case "$f" in
-          VERSION|.claude-plugin/*|marketplace.json) ;;
-          *) HAS_NON_VERSION=true ;;
-        esac
-        if [ "$f" = "VERSION" ]; then
-          HAS_VERSION=true
-        fi
-      done <<< "$STAGED"
-      if [ "$HAS_NON_VERSION" = true ] && [ "$HAS_VERSION" = false ]; then
-        jq -n '{
-          "hookSpecificOutput": {
-            "additionalContext": "VERSION file not staged. Run scripts/bump-version.sh before committing."
-          }
-        }'
-      fi
-    fi
+    VERIFY_OUTPUT=$(bash ./scripts/bump-version.sh --verify 2>&1) || {
+      DETAILS=$(echo "$VERIFY_OUTPUT" | grep -A 10 "MISMATCH")
+      jq -n --arg details "$DETAILS" '{
+        "hookSpecificOutput": {
+          "additionalContext": ("Version files are out of sync. Run: bash scripts/bump-version.sh\n" + $details)
+        }
+      }'
+    }
   fi
 fi
 
