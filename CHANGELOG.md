@@ -2,6 +2,23 @@
 
 All notable changes to VBW will be documented in this file.
 
+## [1.0.97] - 2026-02-09
+
+### Added
+
+- **`suggest-next.sh`** -- context-aware Next Up suggestions (ADP-03). New script reads project state (phases, QA results, map existence, milestone context) and returns ranked suggestions. 12 commands updated to call it instead of hardcoded static blocks. After QA fail, suggests `/vbw:fix` instead of `/vbw:archive`; when codebase map is missing, injects `/vbw:map` hint.
+
+### Changed
+
+- **`templates/SUMMARY.md`** -- slimmed frontmatter to consumed fields only (TAU-05). Removed `duration`, `subsystem`, `tags`, `dependency_graph`, `tech_stack`, `key_files` (never read by any command). Added `tasks_completed`, `tasks_total`, `commit_hashes` (actually consumed by status and QA). Saves ~80-120 output tokens per SUMMARY write.
+- **`references/shared-patterns.md`** -- added Command Context Budget tiers (TAU-02 formalization). Documents Minimal/Standard/Full context injection convention so future commands don't cargo-cult STATE.md injections.
+
+### Removed
+
+- **`/vbw:status --metrics`** -- removed broken flag that referenced `tokens_consumed` and `compaction_count` fields which never existed in the SUMMARY template.
+
+---
+
 ## [1.0.96] - 2026-02-09
 
 ### Fixed
