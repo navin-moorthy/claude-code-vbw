@@ -39,6 +39,7 @@ Otherwise: use .vbw-planning/ defaults.
 3. From phase directory: last completed SUMMARY.md, next pending PLAN.md
 4. From $ARGUMENTS: session notes (if provided)
 5. Current timestamp
+6. From .vbw-planning/.execution-state.json (if exists): execution status, current wave, completed/total plans, running plan titles
 
 ### Step 3: Write RESUME.md
 
@@ -61,6 +62,18 @@ Write to RESUME_PATH:
 
 **Phase goal:** {from ROADMAP.md}
 **Current status:** {from STATE.md}
+
+## Execution State
+
+{If .execution-state.json existed:}
+**Build status:** {status from execution-state}
+**Wave:** {wave}/{total_waves}
+**Plans completed:** {done count}/{total count}
+**Running plans:** {comma-separated titles of plans with status=running}
+**Note:** Agent Teams sessions are not resumable. On /vbw:resume, use /vbw:execute to restart the build from where it left off. Completed plans (with SUMMARY.md) will be skipped.
+
+{If no .execution-state.json:}
+**Build status:** No build in progress
 
 ## Session Notes
 
@@ -87,6 +100,7 @@ Update Session Continuity section: last session date, stopped-at description, re
 
   Phase:    {N} - {name}
   Progress: {completed}/{total} plans
+  Build:    {status} (wave {W}/{T}, {done}/{total} plans) -- only if execution-state existed
   Saved to: {RESUME_PATH}
 
   {If notes: "Notes: {abbreviated}"}
