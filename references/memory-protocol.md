@@ -59,10 +59,10 @@ Run /vbw:help for all commands.
 
 | Command | Trigger |
 |---------|---------|
-| /vbw:new | Creates CLAUDE.md for the first time |
+| /vbw:implement | Creates CLAUDE.md for the first time (bootstrap flow) |
 | /vbw:plan | Updates after planning completes (new phase context) |
 | /vbw:execute | Updates after phase build completes (new decisions, patterns) |
-| /vbw:ship | Regenerates to reflect shipped state (milestone archived) |
+| /vbw:archive | Regenerates to reflect archived state (work completed) |
 
 ## 2. Pattern Learning (MEMO-02, MEMO-03)
 
@@ -117,9 +117,9 @@ Pattern reading is done by `/vbw:plan` (via the Lead agent). Before planning, th
 
 ## 3. Memory Lifecycle (MEMO-06)
 
-### Ship Cleanup
+### Archive Cleanup
 
-When `/vbw:ship` completes a milestone:
+When `/vbw:archive` completes a milestone:
 
 | Artifact | Action | Reason |
 |----------|--------|--------|
