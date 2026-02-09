@@ -34,7 +34,14 @@ Installed skills:
 ## Guard
 
 1. **Already initialized:** If .vbw-planning/config.json exists, STOP: "VBW is already initialized. Use /vbw:config to modify settings or /vbw:new to define your project."
-2. **Brownfield detection:** Check if the project already has source files. Try these in order, stop at the first that succeeds:
+2. **jq required:** Run `command -v jq` via Bash. If jq is not found, STOP with:
+   "VBW requires jq for its hook system. Install it:
+   - macOS: `brew install jq`
+   - Linux: `apt install jq` or `yum install jq`
+   - Manual: https://jqlang.github.io/jq/download/
+   Then re-run /vbw:init."
+   Do NOT proceed to Step 0 without jq.
+3. **Brownfield detection:** Check if the project already has source files. Try these in order, stop at the first that succeeds:
    - **Git repo:** Run `git ls-files --error-unmatch . 2>/dev/null | head -5`. If it returns any files, BROWNFIELD=true.
    - **No git / not initialized:** Use Glob to check for any files (`**/*.*`) excluding `.vbw-planning/`, `.claude/`, `node_modules/`, and `.git/`. If matches exist, BROWNFIELD=true.
    Do not restrict detection to specific file extensions — shell scripts, config files, markdown, C++, Rust, CSS, HTML, and any other language all count.
