@@ -177,22 +177,135 @@ if [ ! -d "$PLANNING_DIR" ]; then
   exit 0
 fi
 
+# --- Resolve ACTIVE milestone ---
+MILESTONE_SLUG="none"
+if [ -f "$PLANNING_DIR/ACTIVE" ]; then
+  MILESTONE_SLUG=$(cat "$PLANNING_DIR/ACTIVE" 2>/dev/null | tr -d '[:space:]')
+  MILESTONE_DIR="$PLANNING_DIR/milestones/$MILESTONE_SLUG"
+  if [ ! -d "$MILESTONE_DIR" ]; then
+    # ACTIVE points to nonexistent directory — fall back
+    MILESTONE_SLUG="none"
+    MILESTONE_DIR="$PLANNING_DIR"
+    PHASES_DIR="$PLANNING_DIR/phases"
+  else
+    PHASES_DIR="$MILESTONE_DIR/phases"
+  fi
+else
+  MILESTONE_DIR="$PLANNING_DIR"
+  PHASES_DIR="$PLANNING_DIR/phases"
+fi
+
+# --- Parse config ---
 CONFIG_FILE="$PLANNING_DIR/config.json"
-EFFORT="balanced"
+config_effort="balanced"
+config_autonomy="standard"
+config_auto_commit="true"
+config_verification="standard"
+config_agent_teams="true"
+config_max_tasks="5"
 if [ -f "$CONFIG_FILE" ]; then
-  EFFORT=$(jq -r '.effort // "balanced"' "$CONFIG_FILE")
+  config_effort=$(jq -r '.effort // "balanced"' "$CONFIG_FILE" 2>/dev/null)
+  config_autonomy=$(jq -r '.autonomy // "standard"' "$CONFIG_FILE" 2>/dev/null)
+  config_auto_commit=$(jq -r '.auto_commit // true' "$CONFIG_FILE" 2>/dev/null)
+  config_verification=$(jq -r '.verification_tier // "standard"' "$CONFIG_FILE" 2>/dev/null)
+  config_agent_teams=$(jq -r '.agent_teams // true' "$CONFIG_FILE" 2>/dev/null)
+  config_max_tasks=$(jq -r '.max_tasks_per_plan // 5' "$CONFIG_FILE" 2>/dev/null)
 fi
 
-STATE_FILE="$PLANNING_DIR/STATE.md"
-STATE_INFO="no STATE.md found"
+# --- Parse STATE.md ---
+STATE_FILE="$MILESTONE_DIR/STATE.md"
+phase_pos="unknown"
+phase_total="unknown"
+phase_name="unknown"
+phase_status="unknown"
+progress_pct="0"
 if [ -f "$STATE_FILE" ]; then
-  PHASE=$(grep -m1 "^## Current Phase" "$STATE_FILE" | sed 's/## Current Phase: *//')
-  STATE_INFO="current phase: ${PHASE:-unknown}"
+  # Extract "Phase: N of M (name)" from "Phase: 1 of 3 (Context Diet)"
+  phase_line=$(grep -m1 "^Phase:" "$STATE_FILE" 2>/dev/null || true)
+  if [ -n "$phase_line" ]; then
+    phase_pos=$(echo "$phase_line" | sed 's/Phase: *\([0-9]*\).*/\1/')
+    phase_total=$(echo "$phase_line" | sed 's/.*of *\([0-9]*\).*/\1/')
+    phase_name=$(echo "$phase_line" | sed -n 's/.*(\(.*\))/\1/p')
+  fi
+  # Extract status line
+  status_line=$(grep -m1 "^Status:" "$STATE_FILE" 2>/dev/null || true)
+  if [ -n "$status_line" ]; then
+    phase_status=$(echo "$status_line" | sed 's/Status: *//')
+  fi
+  # Extract progress percentage
+  progress_line=$(grep -m1 "^Progress:" "$STATE_FILE" 2>/dev/null || true)
+  if [ -n "$progress_line" ]; then
+    progress_pct=$(echo "$progress_line" | grep -o '[0-9]*%' | tr -d '%')
+  fi
+fi
+: "${phase_pos:=unknown}"
+: "${phase_total:=unknown}"
+: "${phase_name:=unknown}"
+: "${phase_status:=unknown}"
+: "${progress_pct:=0}"
+
+# --- Determine next action ---
+NEXT_ACTION=""
+if [ ! -f "$PLANNING_DIR/PROJECT.md" ]; then
+  NEXT_ACTION="/vbw:init"
+elif [ ! -d "$PHASES_DIR" ] || [ -z "$(ls -d "$PHASES_DIR"/*/ 2>/dev/null)" ]; then
+  NEXT_ACTION="/vbw:implement (needs scoping)"
+else
+  # Check execution state for interrupted builds
+  EXEC_STATE="$PLANNING_DIR/.execution-state.json"
+  MILESTONE_EXEC_STATE="$MILESTONE_DIR/.execution-state.json"
+  exec_running=false
+  for es in "$EXEC_STATE" "$MILESTONE_EXEC_STATE"; do
+    if [ -f "$es" ]; then
+      es_status=$(jq -r '.status // ""' "$es" 2>/dev/null)
+      if [ "$es_status" = "running" ]; then
+        exec_running=true
+        break
+      fi
+    fi
+  done
+
+  if [ "$exec_running" = true ]; then
+    NEXT_ACTION="/vbw:implement (build interrupted, will resume)"
+  else
+    # Find next phase needing work
+    all_done=true
+    next_phase=""
+    for pdir in $(ls -d "$PHASES_DIR"/*/ 2>/dev/null | sort); do
+      pname=$(basename "$pdir")
+      plan_count=$(ls "$pdir"/*-PLAN.md 2>/dev/null | wc -l | tr -d ' ')
+      summary_count=$(ls "$pdir"/*-SUMMARY.md 2>/dev/null | wc -l | tr -d ' ')
+      if [ "${plan_count:-0}" -eq 0 ]; then
+        # Phase has no plans yet — needs planning
+        pnum=$(echo "$pname" | sed 's/-.*//')
+        NEXT_ACTION="/vbw:implement (Phase $pnum needs planning)"
+        all_done=false
+        break
+      elif [ "${summary_count:-0}" -lt "${plan_count:-0}" ]; then
+        # Phase has plans but not all executed
+        pnum=$(echo "$pname" | sed 's/-.*//')
+        NEXT_ACTION="/vbw:implement (Phase $pnum planned, needs execution)"
+        all_done=false
+        break
+      fi
+    done
+    if [ "$all_done" = true ]; then
+      NEXT_ACTION="/vbw:archive"
+    fi
+  fi
 fi
 
-jq -n --arg effort "$EFFORT" --arg state "$STATE_INFO" --arg update "$UPDATE_MSG" '{
+# --- Build additionalContext ---
+CTX="VBW project detected."
+CTX="$CTX Milestone: ${MILESTONE_SLUG}."
+CTX="$CTX Phase: ${phase_pos}/${phase_total} (${phase_name}) -- ${phase_status}."
+CTX="$CTX Progress: ${progress_pct}%."
+CTX="$CTX Config: effort=${config_effort}, autonomy=${config_autonomy}, auto_commit=${config_auto_commit}, verification=${config_verification}, agent_teams=${config_agent_teams}, max_tasks=${config_max_tasks}."
+CTX="$CTX Next: ${NEXT_ACTION}."
+
+jq -n --arg ctx "$CTX" --arg update "$UPDATE_MSG" '{
   "hookSpecificOutput": {
-    "additionalContext": ("VBW project detected. Effort: " + $effort + ". State: " + $state + "." + $update)
+    "additionalContext": ($ctx + $update)
   }
 }'
 
