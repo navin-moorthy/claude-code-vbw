@@ -33,7 +33,7 @@ Installed skills:
 
 ## Guard
 
-1. **Already initialized:** If .vbw-planning/config.json exists, STOP: "VBW is already initialized. Use /vbw:config to modify settings or /vbw:new to define your project."
+1. **Already initialized:** If .vbw-planning/config.json exists, STOP: "VBW is already initialized. Use /vbw:config to modify settings or /vbw:implement to start building."
 2. **jq required:** Run `command -v jq` via Bash. If jq is not found, STOP with:
    "VBW requires jq for its hook system. Install it:
    - macOS: `brew install jq`
@@ -198,9 +198,9 @@ If `.vbw-planning/codebase/STACK.md` exists (mapping completed), read it to extr
 
 ### Step 3.5: Generate bootstrap CLAUDE.md
 
-Write a CLAUDE.md at the project root. This is auto-loaded by Claude Code into every session, so it ensures VBW conventions are enforced from the very first interaction — even before `/vbw:new` defines the project.
+Write a CLAUDE.md at the project root. This is auto-loaded by Claude Code into every session, so it ensures VBW conventions are enforced from the very first interaction — even before `/vbw:implement` defines the project.
 
-`/vbw:new` will later regenerate CLAUDE.md with project-specific content. This bootstrap version establishes behavioral rules only.
+`/vbw:implement` will later regenerate CLAUDE.md with project-specific content. This bootstrap version establishes behavioral rules only.
 
 Write the following to `CLAUDE.md` (adjust installed skills list from Step 3e):
 
@@ -221,7 +221,7 @@ This project uses VBW (Vibe Better with Claude Code) for structured development.
 ## State
 
 - Planning directory: `.vbw-planning/`
-- Project not yet defined — run /vbw:new to set up project identity and roadmap.
+- Project not yet defined — run /vbw:implement to set up project identity and roadmap.
 
 ## Installed Skills
 
@@ -263,12 +263,12 @@ Keep under 200 lines. Add `✓ CLAUDE.md` to the summary output.
   {○ Skills.sh registry (skipped) — if find-skills was declined or unavailable}
 ```
 
-Then auto-launch `/vbw:new` by following `@${CLAUDE_PLUGIN_ROOT}/commands/new.md`.
+Then auto-launch `/vbw:implement` by following `@${CLAUDE_PLUGIN_ROOT}/commands/implement.md`.
 
 If greenfield:
 ```
 ➜ Next Up
-  /vbw:new -- Define your project (name, requirements, roadmap)
+  /vbw:implement -- Define your project and start building
 ```
 
 ## Output Format
