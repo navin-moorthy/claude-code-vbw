@@ -34,7 +34,10 @@ Installed skills:
 ## Guard
 
 1. **Already initialized:** If .vbw-planning/config.json exists, STOP: "VBW is already initialized. Use /vbw:config to modify settings or /vbw:new to define your project."
-2. **Brownfield detection:** If project files AND source files (*.ts, *.js, *.py, *.go, *.rs, *.java, *.rb) exist, set BROWNFIELD=true.
+2. **Brownfield detection:** Check if the project already has source files. Try these in order, stop at the first that succeeds:
+   - **Git repo:** Run `git ls-files --error-unmatch . 2>/dev/null | head -5`. If it returns any files, BROWNFIELD=true.
+   - **No git / not initialized:** Use Glob to check for any files (`**/*.*`) excluding `.vbw-planning/`, `.claude/`, `node_modules/`, and `.git/`. If matches exist, BROWNFIELD=true.
+   Do not restrict detection to specific file extensions — shell scripts, config files, markdown, C++, Rust, CSS, HTML, and any other language all count.
 
 ## Steps
 
@@ -123,10 +126,8 @@ Launch these tasks in the SAME message so they execute in parallel:
 
 | Track | What | How |
 |-------|------|-----|
-| **Map** (brownfield only) | Codebase mapping | Launch `/vbw:map` by following `@${CLAUDE_PLUGIN_ROOT}/commands/map.md`. Runs as a background operation with Scout teammates. |
+| **Map** | Codebase mapping | Launch `/vbw:map` by following `@${CLAUDE_PLUGIN_ROOT}/commands/map.md`. Runs as a background operation with Scout teammates. Always runs regardless of brownfield status — the map command handles empty projects via its own guard. |
 | **Detect** | Stack detection | Run `bash ${CLAUDE_PLUGIN_ROOT}/scripts/detect-stack.sh "$(pwd)"` |
-
-If greenfield (BROWNFIELD=false), skip the Map track — only run Detect.
 
 **2c. Process detect-stack.sh results (immediately after Detect completes):**
 
@@ -156,9 +157,9 @@ If declined: display "○ Skipped. Run /vbw:skills later to search the registry.
 
 This step waits for codebase mapping to finish (if brownfield) before proceeding.
 
-**3a. Augment with map data (brownfield only):**
+**3a. Augment with map data:**
 
-If BROWNFIELD=true and `.vbw-planning/codebase/STACK.md` exists, read it to extract additional stack components that `detect-stack.sh` may have missed (e.g., frameworks detected through code analysis rather than manifest files). Merge these into `detected_stack[]`.
+If `.vbw-planning/codebase/STACK.md` exists (mapping completed), read it to extract additional stack components that `detect-stack.sh` may have missed (e.g., frameworks detected through code analysis rather than manifest files). Merge these into `detected_stack[]`.
 
 Display:
 ```
@@ -231,7 +232,7 @@ Keep under 200 lines. Add `✓ CLAUDE.md` to the summary output.
   {include next line only if statusline was installed during Step 0b}
   ✓ Statusline (restart to activate)
 
-  {include Codebase block only if BROWNFIELD}
+  {include Codebase block if mapping ran}
   ✓ Codebase mapped ({document-count} documents)
 
   {include Skills block only if skills were discovered in Step 3}

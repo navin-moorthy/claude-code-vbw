@@ -41,7 +41,10 @@ Codebase index (if mapped):
 1. **Not initialized:** Follow the Initialization Guard in `${CLAUDE_PLUGIN_ROOT}/references/shared-patterns.md`.
 2. **Already defined:** If .vbw-planning/PROJECT.md exists AND does NOT contain the template placeholder `{project-description}`, the project has already been defined. STOP: "Project already defined. Use /vbw:plan to plan your next phase, or pass --re-scope to redefine from scratch."
 3. **Re-scope mode:** If $ARGUMENTS contains `--re-scope`, skip guard 2 and proceed (allows redefining an existing project).
-4. **Brownfield detection:** If project files AND source files (*.ts, *.js, *.py, *.go, *.rs, *.java, *.rb) exist, set BROWNFIELD=true.
+4. **Brownfield detection:** Check if the project already has source files. Try these in order, stop at the first that succeeds:
+   - **Git repo:** Run `git ls-files --error-unmatch . 2>/dev/null | head -5`. If it returns any files, BROWNFIELD=true.
+   - **No git / not initialized:** Use Glob to check for any files (`**/*.*`) excluding `.vbw-planning/`, `.claude/`, `node_modules/`, and `.git/`. If matches exist, BROWNFIELD=true.
+   Do not restrict detection to specific file extensions.
 
 ## Critical Rules
 
@@ -51,11 +54,11 @@ Codebase index (if mapped):
 
 2. **If the user's answer does not match the question, STOP.** If you ask "What are the must-have features?" and the user responds with an unrelated request (e.g., "create a file for me" or "just do X"), do NOT continue the /vbw:new flow. Instead, acknowledge their request, explain that /vbw:new is paused, and handle what they actually asked for. They can re-run /vbw:new later.
 
-3. **Confirmation before every file write.** Before writing each project file (PROJECT.md, REQUIREMENTS.md, ROADMAP.md, STATE.md, CLAUDE.md), display the full generated content to the user and ask for explicit approval. Use AskUserQuestion with options: "Looks good", "Edit this", "Skip this file". Only write the file if the user approves.
+3. **No silent assumptions.** If the user's answers leave gaps (e.g., they mention features but not constraints), ask a follow-up question. Do not fill gaps with your own assumptions.
 
-4. **No silent assumptions.** If the user's answers leave gaps (e.g., they mention features but not constraints), ask a follow-up question. Do not fill gaps with your own assumptions.
+4. **Phases come from the user, not from you.** When creating the roadmap, propose phases based strictly on the requirements the user provided. The user may want a completely different phase structure.
 
-5. **Phases come from the user, not from you.** When creating the roadmap, propose phases based strictly on the requirements the user provided. Present the proposed phases and ask for confirmation before writing ROADMAP.md. The user may want a completely different phase structure.
+5. **Write files directly after gathering answers.** Do NOT prompt for per-file confirmation. Gather the project info (name, description, requirements), generate all files, and write them. Show a single summary at the end. The user can always re-run with `--re-scope` or edit files via `/vbw:config`.
 
 ## Constraints
 
@@ -71,9 +74,7 @@ If $ARGUMENTS provided (excluding flags like --re-scope), use as project descrip
 - "What is the name of your project?"
 - "Describe your project's core purpose in 1-2 sentences."
 
-Fill placeholders: {project-name}, {core-value}, {date}.
-
-**Confirmation gate:** Display the generated PROJECT.md content and ask: "Does this look right?" Only write if approved.
+Fill placeholders: {project-name}, {core-value}, {date}. Write PROJECT.md immediately.
 
 ### Step 2: Gather requirements
 
@@ -86,17 +87,13 @@ Ask 3-5 focused questions:
 
 **If the user's answer to any question is off-topic or requests something unrelated to project definition, STOP the flow.** Acknowledge their request, handle it separately, and let them re-run /vbw:new when ready.
 
-Populate REQUIREMENTS.md with REQ-ID format, organized into v1/v2/out-of-scope. Use ONLY what the user stated — do not add requirements they did not mention.
-
-**Confirmation gate:** Display the generated REQUIREMENTS.md content and ask: "Does this capture your requirements correctly?" Only write if approved.
+Populate REQUIREMENTS.md with REQ-ID format, organized into v1/v2/out-of-scope. Use ONLY what the user stated — do not add requirements they did not mention. Write REQUIREMENTS.md immediately.
 
 ### Step 3: Create roadmap
 
 Suggest 3-5 phases based on requirements. If a codebase map exists (`.vbw-planning/codebase/`), read its documents (INDEX.md, PATTERNS.md, ARCHITECTURE.md, CONCERNS.md) and factor findings into the roadmap — e.g., technical debt from CONCERNS.md may warrant a dedicated phase, architecture patterns may shape phase ordering.
 
-Each phase: name, goal, mapped requirements, success criteria. Fill ROADMAP.md.
-
-**Confirmation gate:** Display the proposed phases (names, goals, requirement mappings) and ask: "Does this phase structure work for you?" Only write ROADMAP.md if approved. The user may want to reorder, merge, split, or remove phases.
+Each phase: name, goal, mapped requirements, success criteria. Write ROADMAP.md immediately.
 
 ### Step 4: Initialize state
 

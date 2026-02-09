@@ -2,6 +2,17 @@
 
 All notable changes to VBW will be documented in this file.
 
+## [1.0.67] - 2026-02-09
+
+### Fixed
+
+- **Brownfield detection is now language-agnostic** — removed hardcoded extension list (`*.ts, *.js, *.py, *.go, *.rs, *.java, *.rb`) from both `init.md` and `new.md`. Detection now cascades: `git ls-files` first, then broad Glob fallback for non-git projects. Shell scripts, C++, CSS, HTML, and any other file type all count.
+- **Codebase mapping always runs during init** — removed `(brownfield only)` gate from the Map track. The map command handles empty projects via its own guard, so init no longer needs to pre-filter.
+
+### Changed
+
+- **Removed per-file confirmation gates from `/vbw:new`** — the flow no longer prompts "Does this look right?" for each file (PROJECT.md, REQUIREMENTS.md, ROADMAP.md). Files are written immediately after gathering answers, with a single summary at the end. Users can re-run with `--re-scope` to redefine.
+
 ## [1.0.60] - 2026-02-08
 
 ### Fixed
