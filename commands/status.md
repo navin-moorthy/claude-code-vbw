@@ -39,7 +39,7 @@ Active milestone:
 ## Guard
 
 1. **Not initialized:** Follow the Initialization Guard in `${CLAUDE_PLUGIN_ROOT}/references/shared-patterns.md`.
-2. **No roadmap:** If ROADMAP.md doesn't exist or still contains template placeholders, STOP: "No roadmap found. Run /vbw:new to define your project."
+2. **No roadmap:** If ROADMAP.md doesn't exist or still contains template placeholders, STOP: "No roadmap found. Run /vbw:implement to set up your project."
 
 ## Steps
 
@@ -80,7 +80,7 @@ If --verbose: also prepare per-phase breakdown with per-plan durations.
 1. Find first incomplete phase
 2. If has plans but not all summaries: `/vbw:execute {N}`
 3. If complete and next has no plans: `/vbw:plan {N+1}`
-4. If all complete: `/vbw:ship`
+4. If all complete: `/vbw:archive`
 5. If no plans anywhere: `/vbw:plan`
 
 ### Step 7: Metrics (--metrics only)
