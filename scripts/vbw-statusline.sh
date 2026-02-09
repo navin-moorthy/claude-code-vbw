@@ -330,6 +330,28 @@ fi
 AGENT_LINE=""
 [ -O "$AGENT_CF" ] && AGENT_LINE=$(cat "$AGENT_CF" 2>/dev/null)
 
+# --- Update check (cached 1h) ---
+
+UPDATE_CF="${_CACHE}-update"
+UPDATE_AVAIL=""
+
+if ! cache_fresh "$UPDATE_CF" 3600; then
+  REMOTE_VER=$(curl -sf --max-time 3 "https://raw.githubusercontent.com/yidakee/vibe-better-with-claude-code-vbw/main/VERSION" 2>/dev/null | tr -d '[:space:]')
+  if [ -n "$REMOTE_VER" ] && [ -n "$_VER" ] && [ "$REMOTE_VER" != "$_VER" ]; then
+    # Compare versions: remote is newer if sort -V puts it last
+    NEWEST=$(printf '%s\n%s\n' "$_VER" "$REMOTE_VER" | (sort -V 2>/dev/null || sort -t. -k1,1n -k2,2n -k3,3n) | tail -1)
+    if [ "$NEWEST" = "$REMOTE_VER" ]; then
+      printf '%s\n' "$REMOTE_VER" > "$UPDATE_CF" 2>/dev/null
+    else
+      printf '%s\n' "" > "$UPDATE_CF" 2>/dev/null
+    fi
+  else
+    printf '%s\n' "" > "$UPDATE_CF" 2>/dev/null
+  fi
+fi
+
+[ -O "$UPDATE_CF" ] && UPDATE_AVAIL=$(cat "$UPDATE_CF" 2>/dev/null | tr -d '[:space:]')
+
 # --- Context bar (20 chars wide) ---
 
 [ "$PCT" -ge 90 ] && BC="$R" || { [ "$PCT" -ge 70 ] && BC="$Y" || BC="$G"; }
@@ -398,7 +420,11 @@ L3="$USAGE_LINE"
 L4="Model: ${D}${MODEL}${X}"
 L4="$L4 ${D}│${X} Time: ${DUR_FMT} (API: ${API_DUR_FMT})"
 [ -n "$AGENT_LINE" ] && L4="$L4 ${D}│${X} ${AGENT_LINE}"
-L4="$L4 ${D}│${X} ${D}VBW ${_VER:-?}${X} ${D}│${X} ${D}CC ${VER}${X}"
+if [ -n "$UPDATE_AVAIL" ]; then
+  L4="$L4 ${D}│${X} ${Y}${B}VBW ${_VER:-?} → ${UPDATE_AVAIL}${X} ${Y}/vbw:update${X} ${D}│${X} ${D}CC ${VER}${X}"
+else
+  L4="$L4 ${D}│${X} ${D}VBW ${_VER:-?}${X} ${D}│${X} ${D}CC ${VER}${X}"
+fi
 
 # --- Output ---
 
