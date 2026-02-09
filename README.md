@@ -376,7 +376,7 @@ These are the commands you'll use every day. This is the job now.
 
 | Command | Description |
 | :--- | :--- |
-| `/vbw:init` | Set up environment and scaffold `.vbw-planning/` directory with templates and config. Configures Agent Teams and statusline. For existing codebases, maps the codebase first, then uses the map data to inform stack detection and skill suggestions before auto-chaining to `/vbw:new`. |
+| `/vbw:init` | Set up environment and scaffold `.vbw-planning/` directory with templates and config. Configures Agent Teams and statusline. Automatically installs git hooks (pre-push version enforcement). For existing codebases, maps the codebase first, then uses the map data to inform stack detection and skill suggestions before auto-chaining to `/vbw:new`. |
 | `/vbw:new [desc]` | Define your project. Asks for name, requirements, creates a phased roadmap, initializes state, and generates CLAUDE.md. |
 | `/vbw:plan [phase]` | Plan a phase. The Lead agent researches context, decomposes work into tasks grouped by wave, and self-reviews the plan. Produces PLAN.md files with YAML frontmatter. Accepts `--effort` flag (thorough/balanced/fast/turbo). Phase is auto-detected when omitted. |
 | `/vbw:execute [phase]` | Execute a planned phase. Creates an Agent Team with Dev teammates for parallel execution with per-plan dependency wiring. At Thorough effort, Devs enter plan-approval mode before writing code. Atomic commits per task. Continuous QA via hooks. Produces SUMMARY.md. Resumes from last checkpoint if interrupted. Phase is auto-detected when omitted. |
@@ -478,11 +478,12 @@ Here's when each one shows up to work:
   │(subagt)  │   (scope creep is for amateurs)                         │ verify
   └──────────┘                                                         │
                                                                        ▼
-  HOOKS (11 event types, 17 handlers)                              VERIFICATION.md
+  HOOKS (11 event types, 18 handlers)                              VERIFICATION.md
   ┌───────────────────────────────────────────────────────────────────────────────┐
   │  Verification                                                                 │
   │    PostToolUse ──── Validates SUMMARY.md on write, checks commit format,      │
-  │                     dispatches skill hooks, updates execution state            │
+  │                     validates frontmatter descriptions, dispatches skill     │
+  │                     hooks, updates execution state                           │
   │    SubagentStop ─── Validates SUMMARY.md structure on subagent completion      │
   │    TeammateIdle ─── Structural completion gate (SUMMARY.md or commit format)   │
   │    TaskCompleted ── Verifies task-related commit via keyword matching          │
@@ -586,7 +587,7 @@ VBW leverages four Opus 4.6 features that make the whole thing work:
 
 **Agent Teams** -- `/vbw:execute`, `/vbw:implement`, and `/vbw:map` create teams of parallel agents. Dev teammates execute tasks concurrently with per-plan dependency wiring (platform-enforced via TaskCreate blockedBy). At Thorough effort, Devs enter plan-approval mode before writing code. Scout teammates communicate via structured JSON schemas for reliable cross-agent handoff. The session acts as team lead.
 
-**Native Hooks** -- 17 hooks across 11 event types provide continuous verification without agent overhead. PostToolUse validates SUMMARY.md structure, commit format, and auto-updates execution state. TeammateIdle gates task completion via structural checks. TaskCompleted verifies task-related commits via keyword matching. SubagentStop validates completion artifacts. PreToolUse blocks sensitive file access and enforces plan boundaries. SessionStart detects project state and checks map staleness. PreCompact preserves agent-specific context. PostCompact verifies critical context survived. Stop logs session metrics. UserPromptSubmit runs pre-flight validation. NotificationReceived logs teammate communication. No more spawning QA agents after every wave.
+**Native Hooks** -- 18 hooks across 11 event types provide continuous verification without agent overhead. PostToolUse validates SUMMARY.md structure, commit format, frontmatter descriptions, and auto-updates execution state. TeammateIdle gates task completion via structural checks. TaskCompleted verifies task-related commits via keyword matching. SubagentStop validates completion artifacts. PreToolUse blocks sensitive file access and enforces plan boundaries. SessionStart detects project state and checks map staleness. PreCompact preserves agent-specific context. PostCompact verifies critical context survived. Stop logs session metrics. UserPromptSubmit runs pre-flight validation. NotificationReceived logs teammate communication. No more spawning QA agents after every wave.
 
 **Tool Permissions** -- Each agent has native `tools`/`disallowedTools` in their YAML frontmatter. Scout and QA literally cannot write files. It's enforced by the platform, not by instructions that an agent might ignore.
 
