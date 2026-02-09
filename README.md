@@ -82,7 +82,7 @@ Most Claude Code plugins were built for the subagent era, one main session spawn
 
 - **Agent Teams for real parallelism.** `/vbw:execute` creates a team of Dev teammates that execute tasks concurrently, each in their own context window. `/vbw:map` runs 4 Scout teammates in parallel to analyze your codebase. This isn't "spawn a subagent and wait" -- it's coordinated teamwork with a shared task list and direct inter-agent communication.
 
-- **Native hooks for continuous verification.** 18 hooks across 10 event types run automatically -- validating SUMMARY.md structure, checking commit format, validating frontmatter descriptions, gating task completion, blocking sensitive file access, enforcing plan file boundaries, managing session lifecycle, tracking session metrics, pre-flight prompt validation, and post-compaction context verification. No more spawning a QA agent after every task. The platform enforces it, not the prompt.
+- **Native hooks for continuous verification.** 20 hooks across 11 event types run automatically -- validating SUMMARY.md structure, checking commit format, validating frontmatter descriptions, gating task completion, blocking sensitive file access, enforcing plan file boundaries, managing session lifecycle, tracking agent lifecycle and cost attribution, tracking session metrics, pre-flight prompt validation, and post-compaction context verification. No more spawning a QA agent after every task. The platform enforces it, not the prompt.
 
 - **Platform-enforced tool permissions.** Each agent has `tools`/`disallowedTools` in their YAML frontmatter -- 4 of 6 agents have platform-enforced deny lists. Scout and QA literally cannot write files. Sensitive file access (`.env`, credentials) is intercepted by the `security-filter` hook. `disallowedTools` is enforced by Claude Code itself, not by instructions an agent might ignore during compaction.
 
@@ -131,7 +131,7 @@ For the "I'll just prompt carefully" crowd.
 | One long session, no structure | Phased roadmap with requirements traceability |
 | Manual agent spawning | 6 specialized agents with enforced permissions |
 | Hope the AI remembers context | Persistent state across sessions via `.vbw-planning/` |
-| No verification unless you ask | Continuous QA via 18 hooks + deep verification on demand |
+| No verification unless you ask | Continuous QA via 20 hooks + deep verification on demand |
 | Commits whenever, whatever | Atomic commits per task with validation |
 | "It works on my machine" | Goal-backward verification against success criteria |
 | Agents talk in free-form text | Structured JSON handoff schemas between agents |
@@ -143,13 +143,15 @@ For the "I'll just prompt carefully" crowd.
 
 <img src="assets/statusline.png" width="100%" />
 
-Five lines of pure situational awareness, rendered after every response. Phase progress, plan completion, effort profile, QA status... everything a senior engineer would track on a whiteboard, except the whiteboard has been replaced by a terminal and the senior engineer has been replaced by you.
+Five or six lines of pure situational awareness, rendered after every response. Phase progress, plan completion, effort profile, QA status... everything a senior engineer would track on a whiteboard, except the whiteboard has been replaced by a terminal and the senior engineer has been replaced by you.
 
 Context window with a live burn bar and token counts. Because somewhere, a staff engineer just felt a disturbance in the force - someone with no CS degree is managing memory allocation, and they're doing it with a progress bar that updates automatically.
 
 API usage limits with countdown timers for session, weekly, and per-model quotas. Session running hot? The bar goes red. Weekly ceiling approaching? You'll know before Anthropic does. Extra usage tracking down to the cent so you always know exactly where your money went. Spoiler: it went to an AI that writes better code than most bootcamp graduates. And some actual graduates, but we don't talk about that at dinner parties.
 
 Cost, duration, diff stats, model info, and GitHub branch, all in one line. It's the kind of dashboard a real engineering team would build after three sprints and a retrospective. You got it by installing a plugin. Twenty years of software craftsmanship, mass layoffs, and all it took to replace the monitoring team was `bash -c` and a dream.
+
+Economy line with per-agent cost attribution -- who spent what and how much of the total. Cache hit rate, cost-per-line, percentage breakdowns sorted by descending spend. The economy line appears automatically once any token cost is incurred and politely disappears when there's nothing to report. It's the CFO your project never asked for and definitely can't afford to ignore.
 
 <br>
 
@@ -475,12 +477,13 @@ Here's when each one shows up to work:
   │(subagt)  │   (scope creep is for amateurs)                         │ verify
   └──────────┘                                                         │
                                                                        ▼
-  HOOKS (10 event types, 18 handlers)                              VERIFICATION.md
+  HOOKS (11 event types, 20 handlers)                              VERIFICATION.md
   ┌───────────────────────────────────────────────────────────────────────────────┐
   │  Verification                                                                 │
   │    PostToolUse ──── Validates SUMMARY.md on write, checks commit format,      │
   │                     validates frontmatter descriptions, dispatches skill     │
   │                     hooks, updates execution state                           │
+  │    SubagentStart ── Writes active agent marker for cost attribution            │
   │    SubagentStop ─── Validates SUMMARY.md structure on subagent completion      │
   │    TeammateIdle ─── Structural completion gate (SUMMARY.md or commit format)   │
   │    TaskCompleted ── Verifies task-related commit via keyword matching          │
@@ -493,7 +496,7 @@ Here's when each one shows up to work:
   │    SessionStart ──── Detects project state, checks map staleness              │
   │    PreCompact ────── Injects agent-specific compaction priorities              │
   │    SessionStart(compact) Verifies critical context survived compaction          │
-  │    Stop ──────────── Logs session metrics and duration                         │
+  │    Stop ──────────── Logs session metrics, persists cost ledger                │
   │    UserPromptSubmit  Pre-flight prompt validation                              │
   │    Notification ──── Logs teammate communication                               │
   └───────────────────────────────────────────────────────────────────────────────┘
@@ -618,7 +621,7 @@ VBW leverages four Opus 4.6 features that make the whole thing work:
 
 **Agent Teams** -- `/vbw:execute`, `/vbw:implement`, and `/vbw:map` create teams of parallel agents. Dev teammates execute tasks concurrently with per-plan dependency wiring (platform-enforced via TaskCreate blockedBy). At Thorough effort, Devs enter plan-approval mode before writing code. Scout teammates communicate via structured JSON schemas for reliable cross-agent handoff. The session acts as team lead.
 
-**Native Hooks** -- 18 hooks across 10 event types provide continuous verification without agent overhead. PostToolUse validates SUMMARY.md structure, commit format, frontmatter descriptions, and auto-updates execution state. TeammateIdle gates task completion via structural checks. TaskCompleted verifies task-related commits via keyword matching. SubagentStop validates completion artifacts. PreToolUse blocks sensitive file access and enforces plan boundaries. SessionStart detects project state and checks map staleness. PreCompact preserves agent-specific context. SessionStart (compact matcher) verifies critical context survived. Stop logs session metrics. UserPromptSubmit runs pre-flight validation. Notification logs teammate communication. No more spawning QA agents after every wave.
+**Native Hooks** -- 20 hooks across 11 event types provide continuous verification without agent overhead. PostToolUse validates SUMMARY.md structure, commit format, frontmatter descriptions, and auto-updates execution state. TeammateIdle gates task completion via structural checks. TaskCompleted verifies task-related commits via keyword matching. SubagentStart tracks the active agent for cost attribution. SubagentStop validates completion artifacts and clears the agent marker. PreToolUse blocks sensitive file access and enforces plan boundaries. SessionStart detects project state and checks map staleness. PreCompact preserves agent-specific context. SessionStart (compact matcher) verifies critical context survived. Stop logs session metrics and persists the cost ledger. UserPromptSubmit runs pre-flight validation. Notification logs teammate communication. No more spawning QA agents after every wave.
 
 **Tool Permissions** -- Each agent has native `tools`/`disallowedTools` in their YAML frontmatter. Scout and QA literally cannot write files. It's enforced by the platform, not by instructions that an agent might ignore.
 
