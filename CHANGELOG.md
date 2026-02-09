@@ -4,22 +4,35 @@ All notable changes to VBW will be documented in this file.
 
 ## [1.0.73] - 2026-02-09
 
+### Added
+
+- **`/vbw:archive` command** — created from `ship.md` with updated terminology. Close out completed work, run audit, archive state to `.vbw-planning/milestones/`, tag the git release, and update project docs. Replaces `/vbw:ship`.
+- **5-state lifecycle router in `/vbw:implement`** — full rewrite as a state machine that auto-detects project state: State 1 (no project) runs bootstrap flow absorbing `/vbw:new`, State 2 (no phases) delegates to `/vbw:plan` scoping mode, State 3 (unplanned phases) delegates to `/vbw:plan`, State 4 (planned phases) delegates to `/vbw:execute`, State 5 (all complete) shows completion with `/vbw:archive` suggestion
+- **Scoping Mode in `/vbw:plan`** — Mode Detection section routes to Scoping Mode (no args + no phases) or Phase Planning Mode (existing behavior). Scoping Mode asks "What do you want to build?", gathers requirements, and creates phases
+- **v2 state machine note in `phase-detection.md`** — documents that phase detection (dual-condition algorithm) only applies to States 3-4 of the implement router
+- **`/vbw:implement` exception in `shared-patterns.md`** — Initialization Guard now skips for `/vbw:implement` since it handles uninitialized state via State 1 bootstrap
+
 ### Changed
 
-- **v2 Command Redesign** — simplified command surface from 30 commands to 27, with `/vbw:implement` as the single primary command (state machine router that auto-detects project state)
-- **`/vbw:implement` rewritten as 5-state lifecycle router** — detects: no project (bootstrap), no phases (scoping), unplanned phase (plan), planned phase (execute), all done (completion). Absorbs `/vbw:new` first-run flow.
-- **`/vbw:plan` gains dual behavior** — no args + no phases = scoping mode (gathers requirements, creates phases). No args + phases = phase planning (existing behavior). Absorbs milestone scoping.
-- **`/vbw:ship` renamed to `/vbw:archive`** — clearer verb for wrapping up completed work. Same functionality, better name.
-- **Milestones become internal** — users never see the "milestone" concept. The `.vbw-planning/milestones/` structure remains under the hood but no commands expose it.
-- **All cross-references updated** — help.md, init.md, audit.md, resume.md, status.md, execute.md, memory-protocol.md, vbw-brand.md, and README.md all reflect the v2 architecture. Zero stale references to removed commands.
-- Command count: 30 → 27 across README, help, and both marketplace.json files
+- **`/vbw:implement` is now the one command** — smart router through the full lifecycle, replacing the previous plan+execute combo. Users only need to remember one command; it auto-detects everything
+- **`/vbw:implement` State 2 delegates to `/vbw:plan`** — scoping logic moved from inline steps to `@`-reference delegation to `plan.md`, matching the pattern used by States 3-4
+- **Milestones become internal** — users never see the "milestone" concept. The `.vbw-planning/milestones/` directory structure and ACTIVE file mechanism are preserved under the hood, but no commands expose them directly
+- **`/vbw:help` fully rewritten** — lifecycle header updated to `init → implement → plan → execute → archive`, command tables restructured for v2 architecture, Phase Management section replaces Milestones & Phases, Git Branches paragraph removed, Getting Started flow leads with `/vbw:implement`
+- **Guard clauses updated across 4 commands** — `audit.md`, `resume.md`, `status.md` guard messages now reference `/vbw:implement` instead of removed commands; `audit.md` description updated from "milestone for shipping readiness" to "completion readiness"
+- **Next Up blocks updated across 3 commands** — `audit.md`, `execute.md`, `status.md` now reference `/vbw:archive` instead of `/vbw:ship`
+- **`/vbw:init` rewired for v2** — auto-launch changed from `@commands/new.md` to `@commands/implement.md`, guard clause updated, CLAUDE.md bootstrap template references `/vbw:implement`, all 6 stale references replaced
+- **`memory-protocol.md` updated** — CLAUDE.md command table now lists `/vbw:implement` (bootstrap) and `/vbw:archive` instead of `/vbw:new` and `/vbw:ship`. Ship Cleanup section renamed to Archive Cleanup
+- **`vbw-brand.md` updated** — Shipped milestone box and Next Up suggestions reference `/vbw:archive`
+- **README.md fully updated** — ASCII flow diagram reflects v2 lifecycle (init → implement → plan/execute → qa → archive), Quick Tutorial rewritten with `/vbw:implement` bootstrap and `/vbw:archive`, command tables updated (removed 4 rows, added archive, updated implement description), brownfield path references `/vbw:implement`
+- **`/vbw:implement` migration note cleaned up** — removed `(not /vbw:ship)` parenthetical from rule note (was a Phase 1 migration reminder, now unnecessary)
+- Command count: 30 → 27 across README, help, CONTRIBUTING, and both marketplace.json files
 
 ### Removed
 
-- `/vbw:new` — absorbed into `/vbw:implement` bootstrap state (auto-detected on first run)
-- `/vbw:ship` — renamed to `/vbw:archive`
-- `/vbw:milestone` — milestones are now internal; no user-facing command needed
-- `/vbw:switch` — removed with milestone commands
+- **`commands/new.md`** — project definition flow absorbed into `/vbw:implement` State 1 bootstrap (auto-detected when no `.vbw-planning/` exists)
+- **`commands/ship.md`** — renamed to `/vbw:archive` with updated terminology throughout
+- **`commands/milestone.md`** — milestones are now internal; managed automatically by the planning and archiving system
+- **`commands/switch.md`** — removed with milestone commands; single-milestone mode is the default for solo developers
 
 ---
 

@@ -64,7 +64,7 @@ Read `${CLAUDE_PLUGIN_ROOT}/commands/{name}.md` and display: name, description, 
 
 | Status | Command           | Description                                       |
 |--------|-------------------|---------------------------------------------------|
-| ✓      | /vbw:audit        | Audit milestone for shipping readiness             |
+| ✓      | /vbw:audit        | Audit completion readiness before archiving        |
 | ✓      | /vbw:add-phase    | Add phase to end of roadmap                        |
 | ✓      | /vbw:insert-phase | Insert urgent phase with renumbering               |
 | ✓      | /vbw:remove-phase | Remove future phase with renumbering               |

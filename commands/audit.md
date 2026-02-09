@@ -1,6 +1,6 @@
 ---
 name: audit
-description: Audit the active milestone for shipping readiness -- checks completion, execution, and verification status.
+description: Audit completion readiness -- checks completion, execution, and verification status.
 argument-hint: [--fix]
 allowed-tools: Read, Glob, Grep, Bash
 ---

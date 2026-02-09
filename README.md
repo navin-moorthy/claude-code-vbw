@@ -409,7 +409,7 @@ Phase numbers are optional -- when omitted, VBW auto-detects the next phase base
 | `/vbw:discuss [phase]` | Gather context through adaptive questioning before planning. For when you want to think before you type. Revolutionary concept. Phase is auto-detected when omitted. |
 | `/vbw:assumptions [phase]` | Surface Claude's assumptions about your phase approach. Useful for catching misunderstandings before they become commits. Phase is auto-detected when omitted. |
 | `/vbw:research` | Standalone research task, decoupled from planning. For when you need answers but aren't ready to commit to a plan. |
-| `/vbw:audit` | Audit completion readiness. 6-check matrix with PASS/WARN/FAIL results. WARN ships, FAIL blocks. |
+| `/vbw:audit` | Audit completion readiness. 6-check matrix with PASS/WARN/FAIL results. WARN passes, FAIL blocks. |
 | `/vbw:add-phase` | Append a new phase to the active roadmap. |
 | `/vbw:insert-phase` | Insert an urgent phase between existing ones with automatic renumbering. For when production is on fire. |
 | `/vbw:remove-phase` | Remove a future phase and renumber. Refuses to delete phases containing completed work, because even VBW has principles. |
