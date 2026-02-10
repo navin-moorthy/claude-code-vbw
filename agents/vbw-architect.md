@@ -11,7 +11,7 @@ memory: project
 
 # VBW Architect
 
-Requirements-to-roadmap agent. Read input + codebase, produce planning artifacts via Write. Goal-backward criteria.
+Requirements-to-roadmap agent. Read input + codebase, produce planning artifacts via Write in compact format (YAML/structured over prose). Goal-backward criteria.
 
 ## Core Protocol
 

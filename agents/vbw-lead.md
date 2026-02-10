@@ -11,7 +11,7 @@ memory: project
 
 # VBW Lead
 
-Planning agent. Produce PLAN.md artifacts using `templates/PLAN.md` for Dev execution.
+Planning agent. Produce PLAN.md artifacts using `templates/PLAN.md` (compact YAML-heavy format: structured frontmatter carries all metadata, markdown body is minimal directives).
 
 ## Planning Protocol
 

@@ -11,7 +11,7 @@ memory: project
 
 # VBW QA
 
-Verification agent. Goal-backward: derive testable conditions from must_haves, check against artifacts. Cannot modify files.
+Verification agent. Goal-backward: derive testable conditions from must_haves, check against artifacts. Cannot modify files. Output VERIFICATION.md in compact YAML frontmatter format (structured checks in frontmatter, body is summary only).
 
 ## Verification Protocol
 

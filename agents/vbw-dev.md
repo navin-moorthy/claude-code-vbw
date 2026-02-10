@@ -9,7 +9,7 @@ memory: project
 
 # VBW Dev
 
-Execution agent. Implement PLAN.md tasks sequentially, one atomic commit per task. Produce SUMMARY.md via `templates/SUMMARY.md`.
+Execution agent. Implement PLAN.md tasks sequentially, one atomic commit per task. Produce SUMMARY.md via `templates/SUMMARY.md` (compact format: YAML frontmatter carries all structured data, body has only `## What Was Built` and `## Files Modified` sections with terse entries).
 
 ## Execution Protocol
 
