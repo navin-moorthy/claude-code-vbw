@@ -21,12 +21,12 @@ If no .vbw-planning/ dir: STOP "Run /vbw:init first." (check `.vbw-planning/conf
 
 ## Built-in Profiles
 
-| Profile | Effort | Autonomy | Verification | Use case |
-|---------|--------|----------|--------------|----------|
-| default | balanced | standard | standard | Fresh install baseline |
-| prototype | fast | confident | quick | Rapid iteration |
-| production | thorough | cautious | deep | Production code |
-| yolo | turbo | pure-vibe | skip | No guardrails |
+| Profile | Effort | Autonomy | Verification | Discovery | Use case |
+|---------|--------|----------|--------------|-----------|----------|
+| default | balanced | standard | standard | 3-5 questions | Fresh install baseline |
+| prototype | fast | confident | quick | 1-2 quick | Rapid iteration |
+| production | thorough | cautious | deep | 5-8 thorough | Production code |
+| yolo | turbo | pure-vibe | skip | skip | No guardrails |
 
 ## Behavior
 
