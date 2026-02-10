@@ -2,6 +2,14 @@
 
 All notable changes to VBW will be documented in this file.
 
+## [1.10.3] - 2026-02-10
+
+### Changed
+
+- **`statusline`** -- removed Cost field from Line 4. Status line now shows Model, Time, Agents, and VBW/CC versions only.
+
+---
+
 ## [1.10.2] - 2026-02-10
 
 ### Added
