@@ -50,4 +50,7 @@ if [ -f "$PLANNING_DIR/.cost-ledger.json" ]; then
   rm -f "$PLANNING_DIR/.cost-ledger.json" "$PLANNING_DIR/.active-agent" 2>/dev/null
 fi
 
+# Clean up GSD isolation session marker (if it exists)
+rm -f "$PLANNING_DIR/.vbw-session" 2>/dev/null
+
 exit 0
