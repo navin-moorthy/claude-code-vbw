@@ -1,12 +1,6 @@
 #!/bin/bash
-# VBW Status Line for Claude Code — 4/5/6-Line Dashboard
-# Line 1: [VBW] Phase N/M │ Plans: done/total (N this phase) │ Effort: X │ QA: pass │ repo:branch Files: +2~3 Commits: ↑5 Diff: +156 -23
-# Line 2: Context: ▓▓▓▓▓▓▓▓░░░░░░░░░░░░ 42% 84.0K/200K │ Tokens: 15.2K in  1.2K out │ Prompt Cache: 5.0K write  2.0K read
-# Line 3: Session: ██████████████████░░  6% ~2h13m │ Weekly: ███████░░░░░░░░░░░░░ 35% ~2d 23h │ Extra: ████████████████████ 96% $578/$600
-# Line 4: Model: Opus │ Cost: $1.53 │ Time: 12m 34s (API: 23s) │ VBW 1.0.67 │ CC 1.0.11
-# Line 5: Economy: Dev $0.82 (70%) │ Lead $0.15 (13%) │ QA $0.12 (10%) │ Other $0.08 (7%) │ Prompt Cache: 85% hit │ $0.005/line  (conditional: cost > $0)
-# Line 6: Team: build-team │ researcher ◆ │ tester ○ │ dev-1 ✓ │ Tasks: 3/5  (conditional, future)
-# Cache files: {prefix}-fast (5s), {prefix}-slow (60s), {prefix}-cost (per-render), {prefix}-ok (permanent)
+# VBW Status Line — 4-5 line dashboard (L1: project, L2: context, L3: usage, L4: economy, L5: agents)
+# Cache: {prefix}-fast (5s), {prefix}-slow (60s), {prefix}-cost (per-render), {prefix}-ok (permanent)
 
 input=$(cat)
 
@@ -28,11 +22,9 @@ fi
 
 # --- Helpers ---
 
-# Check if a cache file is still fresh (within TTL seconds)
 cache_fresh() {
   local cf="$1" ttl="$2"
   [ ! -f "$cf" ] && return 1
-  # Ownership check: only trust cache files we own
   [ ! -O "$cf" ] && rm -f "$cf" 2>/dev/null && return 1
   local mt
   if [ "$_OS" = "Darwin" ]; then
@@ -43,12 +35,10 @@ cache_fresh() {
   [ $((NOW - mt)) -le "$ttl" ]
 }
 
-# Build a progress bar: progress_bar <percent> <width>
 progress_bar() {
   local pct="$1" width="$2"
   local filled=$((pct * width / 100))
   [ "$filled" -gt "$width" ] && filled="$width"
-  # Guarantee at least 1 block for any non-zero percentage
   [ "$pct" -gt 0 ] && [ "$filled" -eq 0 ] && filled=1
   local empty=$((width - filled))
   local color
@@ -62,7 +52,6 @@ progress_bar() {
   printf '%b%s%b' "$color" "$bar" "$X"
 }
 
-# Format token count: 1500000 -> "1.5M", 15000 -> "15.0K", 500 -> "500"
 fmt_tok() {
   local v=$1
   if [ "$v" -ge 1000000 ]; then
@@ -78,7 +67,6 @@ fmt_tok() {
   fi
 }
 
-# Format cost: 0.53 -> "$0.53", 12.40 -> "$12.4", 150.00 -> "$150"
 fmt_cost() {
   local whole="${1%%.*}" frac="${1#*.}"
   local cents="${frac:0:2}"
@@ -91,7 +79,6 @@ fmt_cost() {
   fi
 }
 
-# Format duration from ms: 125000 -> "2m 5s", 3700000 -> "1h 1m"
 fmt_dur() {
   local s=$(($1 / 1000))
   if [ "$s" -ge 3600 ]; then
@@ -102,8 +89,6 @@ fmt_dur() {
     printf "%ds" "$s"
   fi
 }
-
-# --- Session data: single jq call ---
 
 IFS='|' read -r PCT REM IN_TOK OUT_TOK CACHE_W CACHE_R CTX_SIZE \
                COST DUR_MS API_MS ADDED REMOVED MODEL VER <<< \
@@ -124,7 +109,6 @@ IFS='|' read -r PCT REM IN_TOK OUT_TOK CACHE_W CACHE_R CTX_SIZE \
     (.version // "?")
   ] | join("|")' 2>/dev/null)"
 
-# Defaults on jq failure
 PCT=${PCT:-0}; REM=${REM:-100}; IN_TOK=${IN_TOK:-0}; OUT_TOK=${OUT_TOK:-0}
 CACHE_W=${CACHE_W:-0}; CACHE_R=${CACHE_R:-0}; COST=${COST:-0}
 DUR_MS=${DUR_MS:-0}; API_MS=${API_MS:-0}; ADDED=${ADDED:-0}; REMOVED=${REMOVED:-0}
@@ -132,10 +116,7 @@ MODEL=${MODEL:-Claude}; VER=${VER:-?}
 
 NOW=$(date +%s)
 
-# Used tokens = input + cache_write + cache_read (per official docs)
 CTX_USED=$((IN_TOK + CACHE_W + CACHE_R))
-
-# --- Format all values with shell builtins ---
 CTX_USED_FMT=$(fmt_tok "$CTX_USED")
 CTX_SIZE_FMT=$(fmt_tok "$CTX_SIZE")
 IN_TOK_FMT=$(fmt_tok "$IN_TOK")
@@ -146,12 +127,10 @@ COST_FMT=$(fmt_cost "$COST")
 DUR_FMT=$(fmt_dur "$DUR_MS")
 API_DUR_FMT=$(fmt_dur "$API_MS")
 
-# --- Fast cache: VBW state + execution + agents (5s TTL) ---
-
+# --- Fast cache (5s TTL): VBW state + execution + agents ---
 FAST_CF="${_CACHE}-fast"
 
 if ! cache_fresh "$FAST_CF" 5; then
-  # --- VBW state ---
   PH=""; TT=""; EF="balanced"; BR=""
   PD=0; PT=0; PPD=0; QA="--"; GH_URL=""
   if [ -f ".vbw-planning/STATE.md" ]; then
@@ -167,7 +146,6 @@ if ! cache_fresh "$FAST_CF" 5; then
     GIT_MODIFIED=$(git diff --numstat 2>/dev/null | wc -l | tr -d ' ')
     GIT_AHEAD=$(git rev-list --count @{u}..HEAD 2>/dev/null || echo 0)
   fi
-  # Plan counting
   if [ -d ".vbw-planning/phases" ]; then
     PT=$(find .vbw-planning/phases -name '*-PLAN.md' 2>/dev/null | wc -l | tr -d ' ')
     PD=$(find .vbw-planning/phases -name '*-SUMMARY.md' 2>/dev/null | wc -l | tr -d ' ')
@@ -178,7 +156,6 @@ if ! cache_fresh "$FAST_CF" 5; then
     fi
   fi
 
-  # --- Execution progress ---
   EXEC_STATUS=""; EXEC_WAVE=0; EXEC_TWAVES=0; EXEC_DONE=0; EXEC_TOTAL=0; EXEC_CURRENT=""
   if [ -f ".vbw-planning/.execution-state.json" ]; then
     IFS='|' read -r EXEC_STATUS EXEC_WAVE EXEC_TWAVES EXEC_DONE EXEC_TOTAL EXEC_CURRENT <<< \
@@ -192,7 +169,6 @@ if ! cache_fresh "$FAST_CF" 5; then
       ] | join("|")' .vbw-planning/.execution-state.json 2>/dev/null)"
   fi
 
-  # --- Agent count ---
   AGENT_DATA=""
   AGENT_N=$(( $(pgrep -u "$_UID" -cf "claude" 2>/dev/null || echo 1) - 1 ))
   if [ "$AGENT_N" -gt 0 ] 2>/dev/null; then
@@ -208,18 +184,15 @@ if [ -O "$FAST_CF" ]; then
                   AGENT_N < "$FAST_CF"
 fi
 
-# Reconstruct agent display line from count
 AGENT_LINE=""
 if [ "${AGENT_N:-0}" -gt 0 ] 2>/dev/null; then
   AGENT_LINE="${C}◆${X} ${AGENT_N} agent$([ "$AGENT_N" -gt 1 ] && echo s) working"
 fi
 
-# --- Slow cache: usage limits + update check (60s TTL) ---
-
+# --- Slow cache (60s TTL): usage limits + update check ---
 SLOW_CF="${_CACHE}-slow"
 
 if ! cache_fresh "$SLOW_CF" 60; then
-  # --- Usage limits ---
   OAUTH_TOKEN=""
   if [ "$_OS" = "Darwin" ]; then
     CRED_JSON=$(security find-generic-password -s "Claude Code-credentials" -w 2>/dev/null)
@@ -261,7 +234,6 @@ if ! cache_fresh "$SLOW_CF" 60; then
     fi
   fi
 
-  # --- Update check ---
   UPDATE_AVAIL=""
   REMOTE_VER=$(curl -sf --max-time 3 "https://raw.githubusercontent.com/yidakee/vibe-better-with-claude-code-vbw/main/VERSION" 2>/dev/null | tr -d '[:space:]')
   if [ -n "$REMOTE_VER" ] && [ -n "$_VER" ] && [ "$REMOTE_VER" != "$_VER" ]; then
@@ -279,16 +251,13 @@ if [ -O "$SLOW_CF" ]; then
 fi
 
 # --- Cost cache: delta attribution per render ---
-
 COST_CF="${_CACHE}-cost"
 PREV_COST=""
 [ -O "$COST_CF" ] && PREV_COST=$(cat "$COST_CF" 2>/dev/null)
 printf '%s\n' "${COST}" > "$COST_CF" 2>/dev/null
 
-# Delta attribution: attribute cost increase to active agent
 LEDGER_FILE=".vbw-planning/.cost-ledger.json"
 if [ -n "$PREV_COST" ] && [ -d ".vbw-planning" ]; then
-  # Convert to cents for integer arithmetic
   _to_cents() {
     local val="$1" w f
     w="${val%%.*}"
@@ -315,10 +284,8 @@ if [ -n "$PREV_COST" ] && [ -d ".vbw-planning" ]; then
 fi
 
 # --- Usage rendering ---
-
 USAGE_LINE=""
 if [ "$FETCH_OK" = "ok" ]; then
-  # Countdown helper
   countdown() {
     local epoch="$1"
     if [ "${epoch:-0}" -gt 0 ] 2>/dev/null; then
@@ -358,10 +325,7 @@ else
   USAGE_LINE="${D}Limits: N/A (using API key)${X}"
 fi
 
-# --- GitHub link (from VBW state cache) ---
-# OSC 8 clickable link: \e]8;;URL\a TEXT \e]8;;\a
-# Links to current branch tree when branch is available
-
+# --- GitHub link (OSC 8 clickable) ---
 GH_LINK=""
 if [ -n "$GH_URL" ]; then
   GH_NAME=$(basename "$GH_URL")
@@ -373,26 +337,19 @@ if [ -n "$GH_URL" ]; then
   fi
 fi
 
-# --- Context bar (20 chars wide) ---
-
 [ "$PCT" -ge 90 ] && BC="$R" || { [ "$PCT" -ge 70 ] && BC="$Y" || BC="$G"; }
 FL=$((PCT * 20 / 100)); EM=$((20 - FL))
 CTX_BAR=""; [ "$FL" -gt 0 ] && CTX_BAR=$(printf "%${FL}s" | tr ' ' '▓')
 [ "$EM" -gt 0 ] && CTX_BAR="${CTX_BAR}$(printf "%${EM}s" | tr ' ' '░')"
 
-# --- Line 1: VBW project state ---
-
 if [ "$EXEC_STATUS" = "running" ] && [ "${EXEC_TOTAL:-0}" -gt 0 ] 2>/dev/null; then
-  # Build progress mode
   EXEC_PCT=$((EXEC_DONE * 100 / EXEC_TOTAL))
   L1="${C}${B}[VBW]${X} Build: $(progress_bar "$EXEC_PCT" 8) ${EXEC_DONE}/${EXEC_TOTAL} plans"
   [ "${EXEC_TWAVES:-0}" -gt 1 ] 2>/dev/null && L1="$L1 ${D}│${X} Wave ${EXEC_WAVE}/${EXEC_TWAVES}"
   [ -n "$EXEC_CURRENT" ] && L1="$L1 ${D}│${X} ${C}◆${X} ${EXEC_CURRENT}"
 elif [ "$EXEC_STATUS" = "complete" ]; then
-  # Auto-cleanup: remove finished execution state
   rm -f .vbw-planning/.execution-state.json "$FAST_CF" 2>/dev/null
   EXEC_STATUS=""
-  # Fall through to normal display
   L1="${C}${B}[VBW]${X}"
   [ "$TT" -gt 0 ] 2>/dev/null && L1="$L1 Phase ${PH}/${TT}" || L1="$L1 Phase ${PH:-?}"
   [ "$PT" -gt 0 ] 2>/dev/null && L1="$L1 ${D}│${X} Plans: ${PD}/${PT} (${PPD} this phase)"
@@ -426,18 +383,11 @@ if [ -n "$BR" ]; then
   L1="$L1 ${D}Diff:${X} ${G}+${ADDED}${X} ${R}-${REMOVED}${X}"
 fi
 
-# --- Line 2: context window ---
-
 L2="Context: ${BC}${CTX_BAR}${X} ${BC}${PCT}%${X} ${CTX_USED_FMT}/${CTX_SIZE_FMT}"
 L2="$L2 ${D}│${X} Tokens: ${IN_TOK_FMT} in  ${OUT_TOK_FMT} out"
 L2="$L2 ${D}│${X} Prompt Cache: ${CACHE_W_FMT} write  ${CACHE_R_FMT} read"
 
-# --- Line 3: usage limits ---
-
 L3="$USAGE_LINE"
-
-# --- Line 4: session economy + GitHub ---
-
 L4="Model: ${D}${MODEL}${X} ${D}│${X} Cost: ${COST_FMT}"
 L4="$L4 ${D}│${X} Time: ${DUR_FMT} (API: ${API_DUR_FMT})"
 [ -n "$AGENT_LINE" ] && L4="$L4 ${D}│${X} ${AGENT_LINE}"
@@ -447,12 +397,8 @@ else
   L4="$L4 ${D}│${X} ${D}VBW ${_VER:-?}${X} ${D}│${X} ${D}CC ${VER}${X}"
 fi
 
-# --- Line 5: Economy (workflow cost breakdown, PWR-05) ---
-
 L5=""
 if [ -f "$LEDGER_FILE" ] && jq empty "$LEDGER_FILE" 2>/dev/null; then
-  # Per-agent cost breakdown + total via single jq call
-  # Output: agent1:cents|agent2:cents|...|TOTAL:cents
   AGENT_ENTRIES=$(jq -r '
     to_entries | sort_by(-.value) |
     (map("\(.key):\(.value)") + ["TOTAL:\(reduce .[].value as $v (0; . + $v))"])
@@ -460,14 +406,12 @@ if [ -f "$LEDGER_FILE" ] && jq empty "$LEDGER_FILE" 2>/dev/null; then
   ' "$LEDGER_FILE" 2>/dev/null)
 
   ECON_TOTAL_CENTS=0
-  # Extract total
   for entry in $(echo "$AGENT_ENTRIES" | tr '|' ' '); do
     key="${entry%%:*}"; val="${entry#*:}"
     [ "$key" = "TOTAL" ] && ECON_TOTAL_CENTS="${val:-0}"
   done
 
   if [ "$ECON_TOTAL_CENTS" -gt 0 ]; then
-    # Agent display colors
     _agent_color() {
       case "$1" in
         dev) echo "$G" ;;
@@ -480,7 +424,6 @@ if [ -f "$LEDGER_FILE" ] && jq empty "$LEDGER_FILE" 2>/dev/null; then
       esac
     }
 
-    # Agent display names (capitalize)
     _agent_label() {
       case "$1" in
         dev) echo "Dev" ;;
@@ -512,7 +455,6 @@ if [ -f "$LEDGER_FILE" ] && jq empty "$LEDGER_FILE" 2>/dev/null; then
       fi
     done
 
-    # Cache hit rate
     TOTAL_INPUT=$((IN_TOK + CACHE_W + CACHE_R))
     CACHE_HIT_PCT=0
     if [ "$TOTAL_INPUT" -gt 0 ]; then
@@ -523,7 +465,6 @@ if [ -f "$LEDGER_FILE" ] && jq empty "$LEDGER_FILE" 2>/dev/null; then
     else CACHE_COLOR="$R"
     fi
 
-    # $/line metric
     TOTAL_LINES=$((ADDED + REMOVED))
     CPL_STR=""
     if [ "$TOTAL_LINES" -gt 0 ]; then
@@ -538,8 +479,6 @@ if [ -f "$LEDGER_FILE" ] && jq empty "$LEDGER_FILE" 2>/dev/null; then
     [ -n "$CPL_STR" ] && L5="$L5 ${D}│${X} ${CPL_STR}"
   fi
 fi
-
-# --- Output ---
 
 printf '%b\n' "$L1"
 printf '%b\n' "$L2"

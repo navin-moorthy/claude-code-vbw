@@ -1,6 +1,6 @@
 #!/bin/bash
 set -u
-# SessionStart hook: Detect VBW project state and check for updates
+# SessionStart: VBW project state detection, update checks, cache maintenance (exit 0)
 
 # --- Dependency check ---
 if ! command -v jq &>/dev/null; then
@@ -103,8 +103,6 @@ if [ -d "$CACHE_DIR" ]; then
 fi
 
 # --- Auto-sync stale marketplace checkout ---
-# The marketplace is a git clone that can fall behind the cached plugin.
-# If stale, pull it silently so the next /vbw:update works correctly.
 MKT_DIR="$HOME/.claude/plugins/marketplaces/vbw-marketplace"
 if [ -d "$MKT_DIR/.git" ] && [ -d "$CACHE_DIR" ]; then
   MKT_VER=$(jq -r '.version // "0"' "$MKT_DIR/.claude-plugin/plugin.json" 2>/dev/null)
@@ -117,8 +115,7 @@ if [ -d "$MKT_DIR/.git" ] && [ -d "$CACHE_DIR" ]; then
         echo "VBW: marketplace checkout has local modifications — skipping reset" >&2
       fi) &
   fi
-  # Content staleness: compare command counts between marketplace and cache
-  # Only compare commands/ dir (both locations have the same structure for this dir)
+  # Content staleness: compare command counts
   if [ -d "$MKT_DIR/commands" ] && [ -d "$CACHE_DIR" ]; then
     LATEST_VER=$(ls -d "$CACHE_DIR"/*/ 2>/dev/null | sort -V | tail -1)
     if [ -n "$LATEST_VER" ] && [ -d "${LATEST_VER}commands" ]; then
@@ -132,10 +129,7 @@ if [ -d "$MKT_DIR/.git" ] && [ -d "$CACHE_DIR" ]; then
   fi
 fi
 
-# --- Sync commands to ~/.claude/commands/vbw/ for /vbw:* autocomplete prefix ---
-# Plugin commands/ may not show the namespace prefix in all environments.
-# Global commands in a subdirectory (e.g. ~/.claude/commands/vbw/) reliably
-# get the subdirectory name as prefix, matching the pattern GSD uses.
+# --- Sync commands to ~/.claude/commands/vbw/ for autocomplete prefix ---
 VBW_CACHE_CMD=$(ls -d "$HOME"/.claude/plugins/cache/vbw-marketplace/vbw/*/commands 2>/dev/null | sort -V | tail -1)
 VBW_GLOBAL_CMD="$HOME/.claude/commands/vbw"
 if [ -d "$VBW_CACHE_CMD" ]; then
@@ -145,7 +139,6 @@ if [ -d "$VBW_CACHE_CMD" ]; then
 fi
 
 # --- Auto-install git hooks if missing ---
-# Check the user's project (via git), not the plugin directory
 PROJECT_GIT_DIR=$(git rev-parse --show-toplevel 2>/dev/null) || PROJECT_GIT_DIR=""
 if [ -n "$PROJECT_GIT_DIR" ] && [ ! -f "$PROJECT_GIT_DIR/.git/hooks/pre-push" ] && [ -f "$SCRIPT_DIR/install-hooks.sh" ]; then
   (bash "$SCRIPT_DIR/install-hooks.sh" 2>/dev/null) || true

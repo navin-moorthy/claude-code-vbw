@@ -1,27 +1,15 @@
 #!/bin/bash
 set -u
-# UserPromptSubmit hook: Pre-flight validation for VBW commands
-# Non-blocking warnings only (always exit 0)
+# UserPromptSubmit: Pre-flight validation for VBW commands (non-blocking, exit 0)
 
 PLANNING_DIR=".vbw-planning"
-
-# Guard: only check if planning directory exists
-if [ ! -d "$PLANNING_DIR" ]; then
-  exit 0
-fi
+[ -d "$PLANNING_DIR" ] || exit 0
 
 INPUT=$(cat)
 PROMPT=$(echo "$INPUT" | jq -r '.prompt // .content // ""' 2>/dev/null)
-
-# No prompt content to check
-if [ -z "$PROMPT" ]; then
-  exit 0
-fi
+[ -z "$PROMPT" ] && exit 0
 
 # GSD Isolation: manage .vbw-session marker
-# When isolation is enabled (.gsd-isolation exists), create the marker for VBW commands
-# and remove it for non-VBW prompts. This allows security-filter.sh to distinguish
-# VBW command execution from GSD command execution.
 if [ -f "$PLANNING_DIR/.gsd-isolation" ]; then
   if echo "$PROMPT" | grep -qi '^/vbw:'; then
     echo "session" > "$PLANNING_DIR/.vbw-session"
@@ -32,9 +20,8 @@ fi
 
 WARNING=""
 
-# Check: /vbw:execute when no PLAN.md exists in current phase
+# Check: /vbw:execute when no PLAN.md exists
 if echo "$PROMPT" | grep -q '/vbw:execute'; then
-  # Try to detect current phase from STATE.md
   CURRENT_PHASE=""
   if [ -f "$PLANNING_DIR/STATE.md" ]; then
     CURRENT_PHASE=$(grep -m1 "^## Current Phase" "$PLANNING_DIR/STATE.md" | sed 's/.*Phase[: ]*//' | tr -d ' ')
@@ -44,12 +31,12 @@ if echo "$PROMPT" | grep -q '/vbw:execute'; then
     PHASE_DIR="$PLANNING_DIR/phases/$CURRENT_PHASE"
     PLAN_COUNT=$(find "$PHASE_DIR" -name "PLAN.md" -o -name "*-PLAN.md" 2>/dev/null | wc -l | tr -d ' ')
     if [ "$PLAN_COUNT" -eq 0 ]; then
-      WARNING="No PLAN.md found for phase $CURRENT_PHASE. Run /vbw:plan first to create execution plans."
+      WARNING="No PLAN.md for phase $CURRENT_PHASE. Run /vbw:plan first."
     fi
   fi
 fi
 
-# Check: /vbw:plan when phase already has plans
+# Check: /vbw:plan when phase already has plans (warn, not block)
 if echo "$PROMPT" | grep -q '/vbw:plan'; then
   CURRENT_PHASE=""
   if [ -f "$PLANNING_DIR/STATE.md" ]; then
@@ -60,17 +47,17 @@ if echo "$PROMPT" | grep -q '/vbw:plan'; then
     PHASE_DIR="$PLANNING_DIR/phases/$CURRENT_PHASE"
     PLAN_COUNT=$(find "$PHASE_DIR" -name "PLAN.md" -o -name "*-PLAN.md" 2>/dev/null | wc -l | tr -d ' ')
     if [ "$PLAN_COUNT" -gt 0 ]; then
-      WARNING="Phase $CURRENT_PHASE already has $PLAN_COUNT plan(s). Re-planning will create additional plans."
+      WARNING="Phase $CURRENT_PHASE already has $PLAN_COUNT plan(s). Re-planning adds more."
     fi
   fi
 fi
 
-# Check: /vbw:ship when phases are incomplete
+# Check: /vbw:ship with incomplete phases
 if echo "$PROMPT" | grep -q '/vbw:ship'; then
   if [ -f "$PLANNING_DIR/STATE.md" ]; then
     INCOMPLETE=$(grep -c "status:.*incomplete\|status:.*in.progress\|status:.*pending" "$PLANNING_DIR/STATE.md" 2>/dev/null || echo 0)
     if [ "$INCOMPLETE" -gt 0 ]; then
-      WARNING="There appear to be $INCOMPLETE incomplete phase(s). Review STATE.md before shipping."
+      WARNING="$INCOMPLETE incomplete phase(s). Review STATE.md before shipping."
     fi
   fi
 fi
