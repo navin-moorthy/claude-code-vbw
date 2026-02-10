@@ -127,6 +127,57 @@ Ensure config.json includes `"agent_teams": true`.
    - If output contains "already installed": `✓ Git hooks (already installed)`
    - If the git check failed (not a git repo): `○ Git hooks skipped (not a git repository)`
 
+### Step 1.7: GSD isolation (conditional)
+
+**1.7a. GSD detection:**
+
+Check if GSD is installed by testing two conditions (either triggers detection):
+1. Directory `~/.claude/commands/gsd/` exists (GSD global commands installed)
+2. Directory `.planning/` exists in the current project (GSD project initialized)
+
+Run via Bash: `[ -d "$HOME/.claude/commands/gsd" ] || [ -d ".planning" ]`
+
+If NEITHER condition is true: set `GSD_DETECTED=false`, display nothing, skip to Step 2.
+
+If EITHER condition is true: set `GSD_DETECTED=true` and proceed to 1.7b.
+
+**1.7b. Consent prompt:**
+
+Ask the user (use AskUserQuestion):
+```
+GSD detected. Enable plugin isolation?
+
+This adds a PreToolUse hook that prevents GSD commands and agents from
+reading or writing files in .vbw-planning/. VBW commands are unaffected.
+```
+Options: "Enable (Recommended)" / "Skip"
+
+If declined: display "○ GSD isolation skipped" and skip to Step 2.
+
+**1.7c. Create isolation flag:**
+
+If approved:
+1. Create the flag file: `echo "enabled" > .vbw-planning/.gsd-isolation`
+2. Create `.claude/` directory if it does not exist: `mkdir -p .claude`
+3. Write `.claude/CLAUDE.md` with the following exact content:
+
+```markdown
+## Plugin Isolation
+
+- GSD agents and commands MUST NOT read, write, glob, grep, or reference any files in `.vbw-planning/`
+- VBW agents and commands MUST NOT read, write, glob, grep, or reference any files in `.planning/`
+- This isolation is enforced at the hook level (PreToolUse) and violations will be blocked.
+```
+
+4. Display:
+```
+✓ GSD isolation enabled
+  ✓ .vbw-planning/.gsd-isolation (flag)
+  ✓ .claude/CLAUDE.md (instruction guard)
+```
+
+Set `GSD_ISOLATION_ENABLED=true` for use in Step 3.5.
+
 ### Step 2: Brownfield detection + discovery
 
 **2a. Brownfield detection and file count:**
@@ -231,6 +282,14 @@ This project uses VBW (Vibe Better with Claude Code) for structured development.
 
 Run /vbw:status for current progress.
 Run /vbw:help for all available commands.
+
+{include the following section ONLY if GSD_ISOLATION_ENABLED=true from Step 1.7}
+
+## Plugin Isolation
+
+- GSD agents and commands MUST NOT read, write, glob, grep, or reference any files in `.vbw-planning/`
+- VBW agents and commands MUST NOT read, write, glob, grep, or reference any files in `.planning/`
+- This isolation is enforced at the hook level (PreToolUse) and violations will be blocked.
 ```
 
 Keep under 200 lines. Add `✓ CLAUDE.md` to the summary output.
@@ -249,6 +308,8 @@ Keep under 200 lines. Add `✓ CLAUDE.md` to the summary output.
   ✓ .vbw-planning/config.json
   ✓ .vbw-planning/phases/
   ✓ CLAUDE.md                  (bootstrap)
+  {include next line only if GSD isolation was enabled during Step 1.7}
+  ✓ GSD isolation (3-layer defense)
   {include next line only if statusline was installed during Step 0b}
   ✓ Statusline (restart to activate)
 
