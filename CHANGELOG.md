@@ -2,6 +2,20 @@
 
 All notable changes to VBW will be documented in this file.
 
+## [1.10.2] - 2026-02-10
+
+### Added
+
+- **Token compression milestone** -- 3-phase optimization compressing all VBW instruction content. 23 commits, 80/80 QA checks. Commands 53% smaller (4,804→2,266 lines), agents 47% (426→227), templates 49% (382→196), references 72% (1,795→497 across 17→8 files), CLAUDE.md 20% (118→94), live artifacts 58% (431→179). Total coordination overhead vs stock teams: 62%→**75% reduction**.
+- **`docs/token-compression-milestone-analysis.md`** -- full analysis report with per-phase breakdowns, token math, before/after examples, and methodology. Companion to the existing stock teams comparison report.
+
+### Changed
+
+- **README token efficiency table** -- updated with post-compression numbers. Base context 70%→83%, agent coordination 80%→87%, context duplication 70%→81%, total overhead 62%→75%. Subscription rows reframed from misleading "worth $X/mo extra" to "X% more work done" with clear "equivalent capacity" language.
+- **Statusline reduced to 4 lines** -- removed Economy line (L5: per-agent cost breakdown, $/line, cache hit%). Moved Prompt Cache display from context line (L2) to usage line (L3) after Extra field, showing hit%, write, and read counts.
+
+---
+
 ## [1.10.1] - 2026-02-10
 
 ### Changed

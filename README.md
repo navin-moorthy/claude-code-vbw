@@ -25,40 +25,39 @@
 
 ## VBW Token Efficiency vs Stock Opus 4.6 Agent Teams
 
-VBW wraps Claude Code's native Agent Teams with 15 optimization mechanisms across 7 architectural layers -- shell pre-computation, model routing, context diet, compaction resilience, scope enforcement, structured coordination, and effort scaling. The result: same coordination capability, significantly fewer tokens burned on overhead.
+VBW wraps Claude Code's native Agent Teams with 15 optimization mechanisms across 7 architectural layers -- shell pre-computation, model routing, context diet, compaction resilience, scope enforcement, structured coordination, and effort scaling. On top of that, aggressive content compression (v1.10.1) cut every instruction file by 50%+. The result: same coordination capability, ~75% fewer tokens burned on overhead.
 
-Stock teams load all command descriptions into every request, run every agent on Opus, coordinate via expensive message round-trips, and let each agent independently discover project state by reading the same files. VBW replaces all of that with 1,624 lines of bash that execute at zero model token cost, hardcoded model routing (Scout on Haiku, QA on Sonnet), disk-based coordination, and pre-computed state injection.
+Stock teams load all command descriptions into every request, run every agent on Opus, coordinate via expensive message round-trips, and let each agent independently discover project state by reading the same files. VBW replaces all of that with 2,858 lines of bash that execute at zero model token cost, hardcoded model routing (Scout on Haiku, QA on Sonnet), disk-based coordination, pre-computed state injection, and terse compressed instructions across all 29 commands, 6 agents, and 8 reference files.
 
 | Category | Stock Agent Teams | VBW | Saving |
 | :--- | ---: | ---: | ---: |
-| Base context overhead | 10,800 tokens | 3,200 tokens | **70%** |
+| Base context overhead | 10,800 tokens | 1,820 tokens | **83%** |
 | State computation per command | 1,300 tokens | 200 tokens | **85%** |
-| Agent coordination (x4 agents) | 16,000 tokens | 3,200 tokens | **80%** |
+| Agent coordination (x4 agents) | 16,000 tokens | 2,100 tokens | **87%** |
 | Compaction recovery | 5,000 tokens | 2,000 tokens | **60%** |
-| Context duplication (shared files) | 16,500 tokens | 5,000 tokens | **70%** |
+| Context duplication (shared files) | 16,500 tokens | 3,200 tokens | **81%** |
 | Agent model cost per phase | $2.78 | $1.59 | **43%** |
-| **Total coordination overhead** | **87,100 tokens** | **33,200 tokens** | **62%** |
+| **Total coordination overhead** | **87,100 tokens** | **21,500 tokens** | **75%** |
 
-The three highest-impact optimizations: `disable-model-invocation` on 19 of 29 commands removes ~7,600 tokens from every API request; model routing sends Scout to Haiku (60x cheaper than Opus) and QA to Sonnet (5x cheaper); and shell pre-computation via `phase-detect.sh` and `session-start.sh` replaces 5-7 file reads with 22 pre-computed key-value pairs.
+The four highest-impact optimizations: `disable-model-invocation` on 19 of 29 commands removes ~9,000 tokens from every API request (compressed commands are smaller to begin with); content compression cut commands 53%, agents 47%, and references 72% across the board; model routing sends Scout to Haiku (60x cheaper than Opus) and QA to Sonnet (5x cheaper); and shell pre-computation via `phase-detect.sh` and `session-start.sh` replaces 5-7 file reads with 22 pre-computed key-value pairs.
 
 **What this means for your bill:**
 
-VBW's 42% total token reduction per phase means each phase burns fewer tokens on coordination overhead. For API users, that's direct dollar savings. For subscription plans, your rate limit budget stretches ~1.7x further -- equivalent to getting 70% more development capacity for the same price.
+VBW's 54% total token reduction per phase means each phase burns roughly half the tokens on coordination overhead. For API users, that's direct dollar savings. For subscription plans, your rate limit budget stretches ~2.2x further -- equivalent to getting 120% more development capacity for the same price.
 
 | Scenario | Without VBW | With VBW | Impact |
 | :--- | ---: | ---: | ---: |
 | API: single project (10 phases) | ~$28 | ~$16 | **~$12 saved** |
 | API: active dev (20 phases/mo) | ~$56/mo | ~$32/mo | **~$24/mo saved (~$288/yr)** |
 | API: heavy dev (50 phases/mo) | ~$139/mo | ~$80/mo | **~$59/mo saved (~$714/yr)** |
-| Pro ($20/mo) | baseline capacity | ~1.7x phases per cycle | **worth ~$14/mo extra** |
-| Pro annual ($17/mo) | baseline capacity | ~1.7x phases per cycle | **worth ~$12/mo extra** |
-| Max 5x ($100/mo) | 5x Pro capacity | ~8.5x effective | **worth ~$70/mo extra** |
-| Max 20x ($200/mo) | 20x Pro capacity | ~34x effective | **worth ~$140/mo extra** |
+| Pro ($20/mo) | baseline capacity | ~2.2x phases per cycle | **120% more work done** |
+| Pro annual ($17/mo) | baseline capacity | ~2.2x phases per cycle | **120% more work done** |
+| Max 5x ($100/mo) | 5x Pro capacity | ~11x vs base Pro | **120% more work done** |
+| Max 20x ($200/mo) | 20x Pro capacity | ~44x vs base Pro | **120% more work done** |
 
-*API projections use the per-phase agent costs from the table above ($2.78 stock, $1.59 VBW). Subscription projections reflect equivalent capacity gain from the 62% overhead token reduction during development sessions -- each phase consumes fewer tokens from your quota, so you fit more work into the same rate limit window. Based on [current API pricing](https://claude.com/pricing).*
+*API projections use the per-phase agent costs from the table above ($2.78 stock, $1.59 VBW). Subscription plans have a flat fee — VBW doesn't change what you pay, but each phase burns 54% fewer overhead tokens, so you fit ~2.2x more phases into the same rate limit budget. Based on [current API pricing](https://claude.com/pricing).*
 
-Full analysis with methodology, per-mechanism breakdowns, architecture diagrams, and worked examples: **[VBW vs Stock Teams Token Analysis](docs/vbw-1-0-99-vs-stock-teams-token-analysis.md)**
-
+Full analysis: **[VBW vs Stock Teams Token Analysis](docs/vbw-1-10-2-vs-stock-agent-teams-token-analysis.md)** 
 <br>
 
 ## Manifesto
@@ -85,7 +84,7 @@ This project exists to make AI coding better for everyone, and "everyone" means 
 
 Inspired by **[Ralph](https://github.com/frankbria/ralph-claude-code)** and **[Get Shit Done](https://github.com/glittercowboy/get-shit-done)**, however, an entirely new architecture.
 
-VBW is a Claude Code plugin that bolts an actual development lifecycle onto your vibe coding sessions. It gives you 29 slash commands and 6 AI agents that handle planning, building, verifying, and archiving your code, so what you produce has at least a fighting chance of surviving a code review.
+VBW is a Claude Code plugin that bolts an actual development lifecycle onto your vibe coding sessions.
 
 You describe what you want. VBW breaks it into phases. Agents plan, write, and verify the code. Commits are atomic. Verification is goal-backward. State persists across sessions. It's the entire software development lifecycle, except you replaced the engineering team with a plugin and a prayer.
 
@@ -157,12 +156,6 @@ VBW integrates with [Skills.sh](https://skills.sh), the open-source skill regist
 
 - **On-demand skill discovery.** Run `/vbw:skills` anytime to detect your stack, browse curated suggestions, search the Skills.sh registry, and install skills in one step. Use `--search <query>` for direct registry lookups.
 
-- **Dynamic registry search.** For stacks not covered by curated mappings, VBW can search the Skills.sh registry via the optional `find-skills` meta-skill. Results are cached locally with a 7-day TTL -- no repeated network calls. Install it with `npx skills add vercel-labs/skills --skill find-skills -g -y`.
-
-- **Skill-hook wiring.** Use `/vbw:config` to wire installed skills to hook events. Run your linter after every file write. Run your test runner after every commit. The hooks call the skills automatically.
-
-- **Zero lock-in.** Skills are standard Claude Code skills. They work with or without VBW. VBW just makes discovering and using them part of your workflow instead of an afterthought.
-
 <br>
 
 ### What you get versus raw Claude Code
@@ -191,41 +184,11 @@ For the "I'll just prompt carefully" crowd.
 
 <br>
 
-### Output that adapts to what just happened
-
-Every command ends with a "Next Up" block suggesting what to do next. These suggestions aren't static -- they read project state from disk and adapt:
-
-- After a build with zero deviations: prominently suggests `/vbw:archive`
-- After a failed QA: suggests `/vbw:fix` with the specific failing plan ID
-- After planning 5 plans at thorough effort: shows plan count and effort in the suggestion
-- When your codebase map is stale: injects `/vbw:map --incremental` with the staleness percentage
-- When phases remain: names the next phase instead of generic "continue building"
-
-Build reports also include a plain-language "What happened" summary -- 2-4 sentences explaining what was built, any deviations, and the QA outcome in plain English. No plan IDs, no wave numbers, no frontmatter jargon. Veterans can disable it with `/vbw:config plain_summary false`.
-
-<br>
-
-### Cross-phase dependency intelligence
-
-Plans within a phase already have `depends_on` for intra-phase ordering. But what about cross-phase dependencies -- when Phase 3 needs files that Phase 2 was supposed to create?
-
-VBW's Lead agent explicitly declares these in `cross_phase_deps` frontmatter during planning: which phase, which plan, which artifact, and why. Before execution starts, the execute command validates every dependency -- checking that the source plan completed successfully and the artifact exists on disk. If a dependency is unsatisfied, you get a clear error naming the failing plan and a fix command, not a mystery failure halfway through the build.
-
-<br>
-
 ### Real-time statusline that knows more about your project than you do
 
 <img src="assets/statusline.png" width="100%" />
 
 Five or six lines of pure situational awareness, rendered after every response. Phase progress, plan completion, effort profile, QA status... everything a senior engineer would track on a whiteboard, except the whiteboard has been replaced by a terminal and the senior engineer has been replaced by you.
-
-Context window with a live burn bar and token counts. Because somewhere, a staff engineer just felt a disturbance in the force - someone with no CS degree is managing memory allocation, and they're doing it with a progress bar that updates automatically.
-
-API usage limits with countdown timers for session, weekly, and per-model quotas. Session running hot? The bar goes red. Weekly ceiling approaching? You'll know before Anthropic does. Extra usage tracking down to the cent so you always know exactly where your money went. Spoiler: it went to an AI that writes better code than most bootcamp graduates. And some actual graduates, but we don't talk about that at dinner parties.
-
-Cost, duration, diff stats, model info, and GitHub branch, all in one line. It's the kind of dashboard a real engineering team would build after three sprints and a retrospective. You got it by installing a plugin. Twenty years of software craftsmanship, mass layoffs, and all it took to replace the monitoring team was `bash -c` and a dream.
-
-Economy line with workflow cost breakdown -- Build, Plan, Verify, and Other categories aggregated from per-agent cost data. Cache hit rate, cost-per-line, and contextual efficiency insights that surface when patterns warrant action: "QA heavy -- try balanced" when verification exceeds 35% of total spend, "Plan heavy -- try fast" when planning dominates, or a cache efficiency warning when hit rates drop below 40%. The economy line appears automatically once any token cost is incurred and politely disappears when there's nothing to report. It's the CFO your project never asked for and definitely can't afford to ignore.
 
 <br>
 
@@ -557,24 +520,24 @@ Here's when each one shows up to work:
   ┌───────────────────────────────────────────────────────────────────────────────┐
   │  Verification                                                                 │
   │    PostToolUse ──── Validates SUMMARY.md on write, checks commit format,      │
-  │                     validates frontmatter descriptions, dispatches skill     │
-  │                     hooks, updates execution state                           │
-  │    SubagentStart ── Writes active agent marker for cost attribution            │
-  │    SubagentStop ─── Validates SUMMARY.md structure on subagent completion      │
-  │    TeammateIdle ─── Structural completion gate (SUMMARY.md or commit format)   │
-  │    TaskCompleted ── Verifies task-related commit via keyword matching          │
+  │                     validates frontmatter descriptions, dispatches skill      │
+  │                     hooks, updates execution state                            │
+  │    SubagentStart ── Writes active agent marker for cost attribution           │
+  │    SubagentStop ─── Validates SUMMARY.md structure on subagent completion     │
+  │    TeammateIdle ─── Structural completion gate (SUMMARY.md or commit format)  │
+  │    TaskCompleted ── Verifies task-related commit via keyword matching         │
   │                                                                               │
   │  Security                                                                     │
-  │    PreToolUse ──── Blocks sensitive file access (.env, keys), enforces plan    │
-  │                    file boundaries, dispatches skill hooks                     │
+  │    PreToolUse ──── Blocks sensitive file access (.env, keys), enforces plan   │
+  │                    file boundaries, dispatches skill hooks                    │
   │                                                                               │
   │  Lifecycle                                                                    │
   │    SessionStart ──── Detects project state, checks map staleness              │
-  │    PreCompact ────── Injects agent-specific compaction priorities              │
-  │    SessionStart(compact) Verifies critical context survived compaction          │
-  │    Stop ──────────── Logs session metrics, persists cost ledger                │
-  │    UserPromptSubmit  Pre-flight prompt validation                              │
-  │    Notification ──── Logs teammate communication                               │
+  │    PreCompact ────── Injects agent-specific compaction priorities             │
+  │    SessionStart(compact) Verifies critical context survived compaction        │
+  │    Stop ──────────── Logs session metrics, persists cost ledger               │
+  │    UserPromptSubmit  Pre-flight prompt validation                             │
+  │    Notification ──── Logs teammate communication                              │
   └───────────────────────────────────────────────────────────────────────────────┘
 
   ┌───────────────────────────────────────────────────────────────────────────────┐
@@ -692,26 +655,6 @@ When you run `/vbw:init` in your project, it creates:
 ```
 
 Your AI-managed project now has more structure than most startups that raised a Series A.
-
-<br>
-
----
-
-<br>
-
-## Under the Hood
-
-VBW leverages four Opus 4.6 features that make the whole thing work:
-
-**Agent Teams** -- `/vbw:execute`, `/vbw:implement`, and `/vbw:map` create teams of parallel agents. Dev teammates execute tasks concurrently with per-plan dependency wiring (platform-enforced via TaskCreate blockedBy). At Thorough effort, Devs enter plan-approval mode before writing code. Scout teammates communicate via structured JSON schemas for reliable cross-agent handoff. The session acts as team lead.
-
-**Native Hooks** -- 20 hooks across 11 event types provide continuous verification without agent overhead. Every hook routes through a universal wrapper (`hook-wrapper.sh`) that resolves the target script from the plugin cache, logs any failure to `.vbw-planning/.hook-errors.log`, and always exits 0 -- no hook can ever break a session. PostToolUse validates SUMMARY.md structure, commit format, frontmatter descriptions, and auto-updates execution state. TeammateIdle gates task completion via structural checks. TaskCompleted verifies task-related commits via keyword matching. SubagentStart tracks the active agent for cost attribution. SubagentStop validates completion artifacts and clears the agent marker. PreToolUse blocks sensitive file access and enforces plan boundaries. SessionStart detects project state and checks map staleness. PreCompact preserves agent-specific context. SessionStart (compact matcher) verifies critical context survived. Stop logs session metrics and persists the cost ledger. UserPromptSubmit runs pre-flight validation. Notification logs teammate communication. No more spawning QA agents after every wave.
-
-**Tool Permissions** -- Each agent has native `tools`/`disallowedTools` in their YAML frontmatter. Scout and QA literally cannot write files. It's enforced by the platform, not by instructions that an agent might ignore.
-
-**Structured Handoff Schemas** -- Five JSON schemas define how agents communicate via SendMessage: `scout_findings` (Scout to Map Lead), `dev_progress` and `dev_blocker` (Dev to Execute Lead), `qa_result` (QA to Lead), and `debugger_report` (Debugger to Debug Lead). Type-discriminated with backward-compatible fallback to plain markdown. No more parsing free-form text and hoping for the best.
-
-Four platform features. Zero faith in the developer. As it should be.
 
 <br>
 

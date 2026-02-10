@@ -1,5 +1,5 @@
 #!/bin/bash
-# VBW Status Line — 4-5 line dashboard (L1: project, L2: context, L3: usage, L4: economy, L5: agents)
+# VBW Status Line — 4-line dashboard (L1: project, L2: context, L3: usage+cache, L4: model/cost)
 # Cache: {prefix}-fast (5s), {prefix}-slow (60s), {prefix}-cost (per-render), {prefix}-ok (permanent)
 
 input=$(cat)
@@ -126,6 +126,13 @@ CACHE_R_FMT=$(fmt_tok "$CACHE_R")
 COST_FMT=$(fmt_cost "$COST")
 DUR_FMT=$(fmt_dur "$DUR_MS")
 API_DUR_FMT=$(fmt_dur "$API_MS")
+TOTAL_INPUT=$((IN_TOK + CACHE_W + CACHE_R))
+CACHE_HIT_PCT=0
+[ "$TOTAL_INPUT" -gt 0 ] && CACHE_HIT_PCT=$(( CACHE_R * 100 / TOTAL_INPUT ))
+if [ "$CACHE_HIT_PCT" -ge 70 ]; then CACHE_COLOR="$G"
+elif [ "$CACHE_HIT_PCT" -ge 40 ]; then CACHE_COLOR="$Y"
+else CACHE_COLOR="$R"
+fi
 
 # --- Fast cache (5s TTL): VBW state + execution + agents ---
 FAST_CF="${_CACHE}-fast"
@@ -324,6 +331,7 @@ elif [ "$FETCH_OK" = "fail" ]; then
 else
   USAGE_LINE="${D}Limits: N/A (using API key)${X}"
 fi
+USAGE_LINE="$USAGE_LINE ${D}│${X} Prompt Cache: ${CACHE_COLOR}${CACHE_HIT_PCT}% hit${X} ${CACHE_W_FMT} write ${CACHE_R_FMT} read"
 
 # --- GitHub link (OSC 8 clickable) ---
 GH_LINK=""
@@ -385,7 +393,6 @@ fi
 
 L2="Context: ${BC}${CTX_BAR}${X} ${BC}${PCT}%${X} ${CTX_USED_FMT}/${CTX_SIZE_FMT}"
 L2="$L2 ${D}│${X} Tokens: ${IN_TOK_FMT} in  ${OUT_TOK_FMT} out"
-L2="$L2 ${D}│${X} Prompt Cache: ${CACHE_W_FMT} write  ${CACHE_R_FMT} read"
 
 L3="$USAGE_LINE"
 L4="Model: ${D}${MODEL}${X} ${D}│${X} Cost: ${COST_FMT}"
@@ -397,93 +404,9 @@ else
   L4="$L4 ${D}│${X} ${D}VBW ${_VER:-?}${X} ${D}│${X} ${D}CC ${VER}${X}"
 fi
 
-L5=""
-if [ -f "$LEDGER_FILE" ] && jq empty "$LEDGER_FILE" 2>/dev/null; then
-  AGENT_ENTRIES=$(jq -r '
-    to_entries | sort_by(-.value) |
-    (map("\(.key):\(.value)") + ["TOTAL:\(reduce .[].value as $v (0; . + $v))"])
-    | join("|")
-  ' "$LEDGER_FILE" 2>/dev/null)
-
-  ECON_TOTAL_CENTS=0
-  for entry in $(echo "$AGENT_ENTRIES" | tr '|' ' '); do
-    key="${entry%%:*}"; val="${entry#*:}"
-    [ "$key" = "TOTAL" ] && ECON_TOTAL_CENTS="${val:-0}"
-  done
-
-  if [ "$ECON_TOTAL_CENTS" -gt 0 ]; then
-    _agent_color() {
-      case "$1" in
-        dev) echo "$G" ;;
-        lead) echo "$C" ;;
-        architect) echo "$C" ;;
-        qa) echo "$Y" ;;
-        scout) echo "$D" ;;
-        debugger) echo "$R" ;;
-        *) echo "$D" ;;
-      esac
-    }
-
-    _agent_label() {
-      case "$1" in
-        dev) echo "Dev" ;;
-        lead) echo "Lead" ;;
-        architect) echo "Architect" ;;
-        qa) echo "QA" ;;
-        scout) echo "Scout" ;;
-        debugger) echo "Debugger" ;;
-        other) echo "Other" ;;
-        *) echo "$1" ;;
-      esac
-    }
-
-    ECON_PARTS=""
-    for entry in $(echo "$AGENT_ENTRIES" | tr '|' ' '); do
-      key="${entry%%:*}"; val="${entry#*:}"
-      [ "$key" = "TOTAL" ] && continue
-      [ "${val:-0}" -eq 0 ] 2>/dev/null && continue
-      local_color=$(_agent_color "$key")
-      local_label=$(_agent_label "$key")
-      local_d=$((val / 100)); local_f=$((val % 100))
-      local_cost=$(printf "\$%d.%02d" "$local_d" "$local_f")
-      local_pct=""
-      [ "$ECON_TOTAL_CENTS" -gt 5 ] && local_pct=" ($((val * 100 / ECON_TOTAL_CENTS))%)"
-      if [ -z "$ECON_PARTS" ]; then
-        ECON_PARTS="${local_color}${local_label}${X} ${local_cost}${local_pct}"
-      else
-        ECON_PARTS="$ECON_PARTS ${D}│${X} ${local_color}${local_label}${X} ${local_cost}${local_pct}"
-      fi
-    done
-
-    TOTAL_INPUT=$((IN_TOK + CACHE_W + CACHE_R))
-    CACHE_HIT_PCT=0
-    if [ "$TOTAL_INPUT" -gt 0 ]; then
-      CACHE_HIT_PCT=$(( CACHE_R * 100 / TOTAL_INPUT ))
-    fi
-    if [ "$CACHE_HIT_PCT" -ge 70 ]; then CACHE_COLOR="$G"
-    elif [ "$CACHE_HIT_PCT" -ge 40 ]; then CACHE_COLOR="$Y"
-    else CACHE_COLOR="$R"
-    fi
-
-    TOTAL_LINES=$((ADDED + REMOVED))
-    CPL_STR=""
-    if [ "$TOTAL_LINES" -gt 0 ]; then
-      CPL_TENTHS=$(( ECON_TOTAL_CENTS * 10 / TOTAL_LINES ))
-      CPL_D=$(( CPL_TENTHS / 1000 ))
-      CPL_F=$(( CPL_TENTHS % 1000 ))
-      CPL_STR=$(printf "\$%d.%03d/line" "$CPL_D" "$CPL_F")
-    fi
-
-    L5="Economy: ${ECON_PARTS}"
-    L5="$L5 ${D}│${X} Prompt Cache: ${CACHE_COLOR}${CACHE_HIT_PCT}% hit${X}"
-    [ -n "$CPL_STR" ] && L5="$L5 ${D}│${X} ${CPL_STR}"
-  fi
-fi
-
 printf '%b\n' "$L1"
 printf '%b\n' "$L2"
 printf '%b\n' "$L3"
 printf '%b\n' "$L4"
-[ -n "$L5" ] && printf '%b\n' "$L5"
 
 exit 0
