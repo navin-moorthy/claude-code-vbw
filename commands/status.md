@@ -21,7 +21,7 @@ Roadmap:
 !`head -50 .vbw-planning/ROADMAP.md 2>/dev/null || echo "No roadmap found"`
 ```
 
-Config: Pre-injected by SessionStart hook (effort, autonomy, verification_tier). Read .vbw-planning/config.json only if --verbose flag is set.
+Config: Pre-injected by SessionStart hook. Read .vbw-planning/config.json only if --verbose.
 
 Phase directories:
 ```
@@ -35,53 +35,27 @@ Active milestone:
 
 ## Guard
 
-1. **Not initialized:** Follow the Initialization Guard in `${CLAUDE_PLUGIN_ROOT}/references/shared-patterns.md`.
-2. **No roadmap:** If ROADMAP.md doesn't exist or still contains template placeholders, STOP: "No roadmap found. Run /vbw:implement to set up your project."
+- Not initialized: follow Initialization Guard in `${CLAUDE_PLUGIN_ROOT}/references/shared-patterns.md`
+- No ROADMAP.md or has template placeholders: STOP "No roadmap found. Run /vbw:implement to set up your project."
 
 ## Steps
 
-### Step 1: Parse arguments
+1. **Parse args:** --verbose shows per-plan detail within each phase
+2. **Resolve milestone:** If .vbw-planning/ACTIVE exists, use milestone-scoped paths. Gather milestone list (all dirs with ROADMAP.md). Else use defaults.
+3. **Read data:**
+   - STATE.md: project name, current phase, velocity
+   - ROADMAP.md: phases, status markers, plan counts
+   - SessionStart injection: effort, autonomy. If --verbose, read config.json
+   - Phase dirs: glob `*-PLAN.md` and `*-SUMMARY.md` per phase for completion data
+   - If Agent Teams build active: read shared task list for teammate status
+   - Cost ledger: if `.vbw-planning/.cost-ledger.json` exists, read with jq. Extract per-agent costs. Compute total. Only display economy if total > 0.
+4. **Compute progress:** Per phase: count PLANs (total) vs SUMMARYs (done). Pct = done/total * 100. Status: ✓ (100%), ◆ (1-99%), ○ (0%).
+5. **Compute velocity:** Total plans done, avg duration, total time. If --verbose: per-phase breakdown.
+6. **Next action:** Find first incomplete phase. Has plans but not all summaries: `/vbw:execute {N}`. Complete + next unplanned: `/vbw:plan {N+1}`. All complete: `/vbw:archive`. No plans anywhere: `/vbw:plan`.
 
-- **--verbose**: Show per-plan detail within each phase
+## Display
 
-### Step 2: Resolve milestone context
-
-If .vbw-planning/ACTIVE exists: use milestone-scoped ROADMAP_PATH, PHASES_DIR. Gather milestone list (all dirs with ROADMAP.md).
-Otherwise: use .vbw-planning/ defaults.
-
-### Step 3: Read project data
-
-**From STATE.md:** Project name, current phase, velocity metrics.
-**From ROADMAP.md:** All phases with names, status markers, plan counts.
-**From SessionStart injection:** Effort profile, autonomy level. If --verbose, read .vbw-planning/config.json for full config display.
-**From phase directories:** Glob for `*-PLAN.md` and `*-SUMMARY.md` per phase. Count for real-time completion data.
-
-If an Agent Teams build is active, read the shared task list for live teammate status.
-
-**From cost ledger:** If `.vbw-planning/.cost-ledger.json` exists, read it with jq. Extract per-agent cost entries (agent name and cents). Compute total cents. Only proceed with economy display if total > 0.
-
-### Step 4: Compute phase progress
-
-For each phase in roadmap:
-1. Count PLAN.md files (total) and SUMMARY.md files (completed)
-2. Calculate percentage: (completed / total) * 100
-3. Status: ✓ complete (100%), ◆ in-progress (1-99%), ○ planned/not-started (0%)
-
-### Step 5: Compute velocity
-
-From STATE.md or SUMMARY.md files: total plans completed, average duration, total time.
-
-If --verbose: also prepare per-phase breakdown with per-plan durations.
-
-### Step 6: Determine next action
-
-1. Find first incomplete phase
-2. If has plans but not all summaries: `/vbw:execute {N}`
-3. If complete and next has no plans: `/vbw:plan {N+1}`
-4. If all complete: `/vbw:archive`
-5. If no plans anywhere: `/vbw:plan`
-
-### Step 7: Display dashboard
+Per @${CLAUDE_PLUGIN_ROOT}/references/vbw-brand-essentials.md:
 
 **Header:**
 ```
@@ -91,35 +65,16 @@ If --verbose: also prepare per-phase breakdown with per-plan durations.
 ╚═══════════════════════════════════════════╝
 ```
 
-**Multi-milestone overview** (if multiple milestones):
+**Multi-milestone** (if multiple):
 ```
   Milestones:
     ◆ {active-slug}    {bar} {%}  ({done}/{total} phases)
     ○ {other-slug}     {bar} {%}  ({done}/{total} phases)
 ```
 
-**Phase list:**
-```
-  Phases:
-    ✓ Phase 1: {name}       ██████████ 100%  (3/3 plans)
-    ◆ Phase 3: {name}       ██████░░░░  60%  (2/3 plans)
-    ○ Phase 4: {name}       ░░░░░░░░░░   0%  (0/3 plans)
-```
+**Phases:** `✓/◆/○ Phase N: {name}  {██░░} {%}  ({done}/{total} plans)`. If --verbose, indent per-plan detail with duration.
 
-**Verbose per-plan detail** (if --verbose):
-```
-    ✓ Phase 1: {name}       ██████████ 100%  (3/3 plans)
-        ✓ Plan 01: {title}                    ~3 min
-        ✓ Plan 02: {title}                    ~4 min
-```
-
-**Agent Teams status** (if build team active):
-```
-  Active Build:
-    ◆ Dev-1: Plan 02 (in progress)
-    ✓ Dev-2: Plan 01 (complete)
-    ○ Dev-3: Plan 03 (pending)
-```
+**Agent Teams** (if active): `◆/✓/○ {Agent}: Plan {N} ({status})`
 
 **Velocity:**
 ```
@@ -129,34 +84,14 @@ If --verbose: also prepare per-phase breakdown with per-plan durations.
     Total time:       {time}
 ```
 
-**Economy** (if `.vbw-planning/.cost-ledger.json` exists AND total cost > $0.00):
-
-Guard: Only display this section when `.vbw-planning/.cost-ledger.json` exists AND the total cost exceeds $0.00. When the file doesn't exist or total is zero, skip the entire Economy section silently.
-
-Read `.vbw-planning/.cost-ledger.json` with jq. For each agent entry, extract the agent name and cost in cents. Sort agents by cost descending. Compute total cost and each agent's percentage of total.
-
+**Economy** (only if .cost-ledger.json exists AND total > $0.00): Read ledger with jq. Sort agents by cost desc. Show dollar + pct per agent. Include cache hit rate if available.
 ```
   Economy:
     Total cost:   ${total}
     Per agent:
       Dev          $0.82   70%
       Lead         $0.15   13%
-      QA           $0.12   10%
-      Other        $0.08    7%
     Cache hit rate: {percent}%
 ```
 
-Format: Show dollar amount and percentage for each agent, sorted by cost descending. Use the same plain-text style as the Velocity section (no ANSI codes). Include cache hit rate from the ledger if available.
-
-**Next Up:**
-Run `bash ${CLAUDE_PLUGIN_ROOT}/scripts/suggest-next.sh status` and display the output.
-
-## Output Format
-
-Follow @${CLAUDE_PLUGIN_ROOT}/references/vbw-brand-essentials.md:
-- Status Dashboard template (double-line header box)
-- Progress bars: 10 chars, █ filled, ░ empty
-- Symbols: ✓ complete, ◆ in-progress, ○ pending
-- Metrics Block for velocity and token sections
-- Next Up Block for suggested action
-- No ANSI color codes
+**Next Up:** Run `bash ${CLAUDE_PLUGIN_ROOT}/scripts/suggest-next.sh status` and display.
