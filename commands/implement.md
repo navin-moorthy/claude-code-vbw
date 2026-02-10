@@ -102,17 +102,34 @@ Display "Scoping complete. {N} phases created. Transitioning to planning..." Re-
 **Parse arguments:** Phase number (optional), --effort (optional), --skip-qa (optional).
 
 **Determine planning state:**
-- No plans (State 3): proceed to Planning
+- No plans (State 3): proceed to Phase Discovery → Planning
 - Plans without all SUMMARY.md (State 4): skip to Execution
 - All have SUMMARY.md: cautious/standard → WARN + ask "Re-running creates new commits. Continue?"; confident/pure-vibe → warn + auto-continue
+
+### Phase Discovery step (State 3 only, before planning)
+
+**Skip if:** State 4 (already planned) OR phase dir already has `{phase}-CONTEXT.md` (from `/vbw:discuss`) OR DISCOVERY_DEPTH=skip.
+
+**Depth resolution:** Read `discovery_questions` and `active_profile` from config. Map profile to depth (same table as B1.5). If `discovery_questions=false`: skip.
+
+**Flow:**
+1. Read `.vbw-planning/discovery.json` (create `{"answered":[],"inferred":[]}` if missing)
+2. Read phase goal, requirements, and success criteria from ROADMAP.md
+3. Read `${CLAUDE_PLUGIN_ROOT}/references/discovery-protocol.md` Phase Discovery mode (deferred load, TAU-01)
+4. Generate phase-scoped questions. Count: quick=1, standard=1-2, thorough=2-3. Skip categories already covered in `discovery.json.answered[]`. Focus on phase-specific edge cases, priorities, and boundaries.
+5. Present as AskUserQuestion. Follow protocol wording guidelines — no jargon, concrete scenarios, cause/effect.
+6. Append answers to `discovery.json` (`answered[]` with phase="{phase-number}", `inferred[]` with new facts)
+7. Write `{phase}-CONTEXT.md` to phase dir (same format as `/vbw:discuss` output: User Vision, Essential Features, Technical Preferences, Boundaries, Acceptance Criteria, Decisions Made)
+
+Display: `✓ Phase discovery complete ({N} questions answered)`
 
 ### Planning step (State 3 only)
 
 Read `${CLAUDE_PLUGIN_ROOT}/commands/plan.md` (Phase Planning Mode section). Display `◆ Planning Phase {N}: {phase-name}  Effort: {level}`
 
-1. Resolve context. Display: `◆ Resolving context...`
+1. Resolve context. If `{phase}-CONTEXT.md` exists in phase dir (from Phase Discovery or `/vbw:discuss`), include its path in Lead agent context. Display: `◆ Resolving context...`
 2. Turbo: direct plan generation inline. Display: `◆ Turbo mode -- generating plan inline...`
-3. Other efforts: spawn Lead agent. Display: `◆ Spawning Lead agent...` → `✓ Lead agent complete`
+3. Other efforts: spawn Lead agent with context including CONTEXT.md path. Display: `◆ Spawning Lead agent...` → `✓ Lead agent complete`
 4. Validate PLAN.md files produced. Display brief summary.
 
 Do NOT update STATE.md to "Planned" — implement skips to "Built" after execution.
