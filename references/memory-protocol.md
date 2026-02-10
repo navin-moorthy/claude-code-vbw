@@ -34,6 +34,13 @@ The generated CLAUDE.md follows this structure:
 {from STATE.md Skills section, if exists}
 - {skill} ({scope})
 
+## Project Conventions
+
+{from .vbw-planning/conventions.json, if exists and non-empty}
+These conventions are enforced during planning and verified during QA.
+
+- {rule} [{category}]
+
 ## Learned Patterns
 
 {from .vbw-planning/patterns/PATTERNS.md, if exists -- 3-5 most relevant}
@@ -63,6 +70,7 @@ Run /vbw:help for all commands.
 | /vbw:plan | Updates after planning completes (new phase context) |
 | /vbw:execute | Updates after phase build completes (new decisions, patterns) |
 | /vbw:archive | Regenerates to reflect archived state (work completed) |
+| /vbw:teach | Updates Project Conventions section when conventions change |
 
 ## 2. Pattern Learning (MEMO-02, MEMO-03)
 

@@ -238,6 +238,23 @@ If declined: display "○ Skipped. Run /vbw:skills later to search the registry.
 
 If `.vbw-planning/codebase/STACK.md` exists (mapping completed), read it to extract additional stack components that `detect-stack.sh` may have missed (e.g., frameworks detected through code analysis rather than manifest files). Merge these into `detected_stack[]`.
 
+**3b2. Auto-detect conventions from codebase map:**
+
+If codebase mapping completed (`.vbw-planning/codebase/PATTERNS.md` exists):
+
+1. Read these map documents: `PATTERNS.md`, `ARCHITECTURE.md`, `STACK.md`, `CONCERNS.md`
+2. Extract concrete, actionable conventions following the rules in `${CLAUDE_PLUGIN_ROOT}/commands/teach.md` (Step R2)
+3. Create `.vbw-planning/conventions.json` with the detected conventions
+4. Display: `✓ {count} conventions auto-detected from codebase`
+
+If mapping was skipped (greenfield): create an empty conventions file:
+```json
+{"conventions": []}
+```
+Display: `○ Conventions — none yet (add with /vbw:teach)`
+
+Convention auto-detection runs silently — no user prompts. The user can review, add, or modify conventions later via `/vbw:teach`.
+
 **3c. Parallel registry search** — if find-skills is available (either was already installed or just installed in 2d):
 
 - If `detected_stack[]` is non-empty (including any augmented items from 3b): run `npx skills find "<stack-item>"` for ALL detected stack items **in parallel** (use multiple concurrent Bash tool calls in the SAME message). Collect and deduplicate results against already-installed skills.
@@ -279,6 +296,16 @@ This project uses VBW (Vibe Better with Claude Code) for structured development.
 
 {list installed skills from STATE.md Skills section, or "None" if empty}
 
+## Project Conventions
+
+{If .vbw-planning/conventions.json has entries, list them:}
+These conventions are enforced during planning and verified during QA.
+
+- {rule} [{category}]
+- {rule} [{category}]
+
+{If no conventions: "None yet. Run /vbw:teach to add project conventions."}
+
 ## Commands
 
 Run /vbw:status for current progress.
@@ -316,6 +343,9 @@ Keep under 200 lines. Add `✓ CLAUDE.md` to the summary output.
 
   {include Codebase block if mapping ran}
   ✓ Codebase mapped ({document-count} documents)
+
+  {include Conventions line if conventions were detected}
+  ✓ {count} conventions auto-detected (review with /vbw:teach)
 
   {include Skills block only if skills were discovered in Step 3}
   Skills:
