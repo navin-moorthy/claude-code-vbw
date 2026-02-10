@@ -16,7 +16,7 @@ Current state:
 !`head -40 .vbw-planning/STATE.md 2>/dev/null || echo "No state found"`
 ```
 
-Config: Pre-injected by SessionStart hook (effort, autonomy, verification_tier). Override with --effort flag.
+Config: Pre-injected by SessionStart hook. Override with --effort flag.
 
 Phase directories:
 ```
@@ -25,50 +25,17 @@ Phase directories:
 
 ## Guard
 
-1. **Not initialized:** Follow the Initialization Guard in `${CLAUDE_PLUGIN_ROOT}/references/shared-patterns.md`.
+- Not initialized: follow Initialization Guard in `${CLAUDE_PLUGIN_ROOT}/references/shared-patterns.md`
+- **Auto-detect phase** (no explicit number): Read `${CLAUDE_PLUGIN_ROOT}/references/phase-detection.md`. Resolve phases dir (check .vbw-planning/ACTIVE). Scan numerically for first phase with `*-SUMMARY.md` but no `*-VERIFICATION.md`. Found: announce "Auto-detected Phase {N} ({slug})". All verified: STOP "All phases verified. Specify: `/vbw:qa N`"
+- Phase not built (no SUMMARYs): STOP "Phase {N} has no completed plans. Run /vbw:execute {N} first."
 
-2. **Auto-detect phase (if no explicit phase number):** If `$ARGUMENTS` does not contain an integer phase number (flags like `--tier` are still allowed):
-   1. Read `${CLAUDE_PLUGIN_ROOT}/references/phase-detection.md`
-   2. Resolve the phases directory: if `.vbw-planning/ACTIVE` exists, read it for the milestone slug and use `.vbw-planning/{milestone-slug}/phases/`; otherwise use `.vbw-planning/phases/`
-   3. Scan phase directories in numeric order (`01-*`, `02-*`, ...). Find the first phase where `*-SUMMARY.md` files exist but no `*-VERIFICATION.md` exists
-   4. If found: announce "Auto-detected Phase {N} ({slug}) -- built, not yet verified" and proceed with that phase number
-   5. If all built phases are verified: STOP and tell user "All phases verified. Specify a phase to re-verify: `/vbw:qa N`"
-
-3. **Phase not built:** If no SUMMARY.md files in phase directory, STOP: "Phase {N} has no completed plans. Run /vbw:execute {N} first."
-
-Note: Continuous verification is handled by hooks (PostToolUse, TaskCompleted, TeammateIdle). This command is for deep, on-demand verification only.
+Note: Continuous verification handled by hooks. This command is for deep, on-demand verification only.
 
 ## Steps
 
-### Step 1: Resolve tier
-
-Priority order:
-1. `--tier` flag (explicit override)
-2. `--effort` flag mapped via effort-profiles.md:
-
-| Effort   | QA Tier  |
-|----------|----------|
-| Turbo    | Skip (exit: "QA skipped in turbo mode") |
-| Fast     | Quick    |
-| Balanced | Standard |
-| Thorough | Deep     |
-
-3. Config default mapped via same table. If no config: Standard.
-
-After resolving the effort level, read the corresponding profile for detailed QA behavior:
-- `${CLAUDE_PLUGIN_ROOT}/references/effort-profile-{profile}.md`
-
-**Context overrides:** If >15 requirements or last phase before ship: override to Deep.
-
-### Step 2: Resolve milestone context
-
-If .vbw-planning/ACTIVE exists: use milestone-scoped paths.
-Otherwise: use default .vbw-planning/ paths.
-
-### Step 3: Spawn QA agent
-
-Spawn vbw-qa as a subagent via the Task tool with thin context:
-
+1. **Resolve tier:** Priority: --tier flag > --effort flag > config default > Standard. Effort mapping: turbo=skip (exit "QA skipped in turbo mode"), fast=quick, balanced=standard, thorough=deep. Read `${CLAUDE_PLUGIN_ROOT}/references/effort-profile-{profile}.md`. Context overrides: >15 requirements or last phase before ship → Deep.
+2. **Resolve milestone:** If .vbw-planning/ACTIVE exists, use milestone-scoped paths.
+3. **Spawn QA:** Spawn vbw-qa as subagent via Task tool:
 ```
 Verify phase {N}. Tier: {ACTIVE_TIER}.
 Plans: {paths to PLAN.md files}
@@ -78,32 +45,10 @@ Convention baseline: .vbw-planning/codebase/CONVENTIONS.md (if exists)
 Verification protocol: ${CLAUDE_PLUGIN_ROOT}/references/verification-protocol.md
 Return findings using the qa_result schema (see ${CLAUDE_PLUGIN_ROOT}/references/handoff-schemas.md).
 ```
+QA agent reads all files itself.
 
-The QA agent reads all referenced files itself.
-
-### Step 4: Persist results
-
-Parse QA output as JSON (`qa_result` schema). If parsing fails, fall back to extracting result and counts from plain markdown. See `${CLAUDE_PLUGIN_ROOT}/references/handoff-schemas.md`.
-
-Write VERIFICATION.md to `{phase-dir}/{phase}-VERIFICATION.md`:
-```yaml
----
-phase: {phase-id}
-tier: {ACTIVE_TIER}
-result: {PASS|FAIL|PARTIAL}
-passed: {N}
-failed: {N}
-total: {N}
-date: {YYYY-MM-DD}
----
-```
-
-Body: QA output text.
-
-### Step 5: Present summary
-
-Display using `${CLAUDE_PLUGIN_ROOT}/references/vbw-brand-essentials.md`:
-
+4. **Persist:** Parse QA output as JSON (qa_result schema). Fallback: extract from markdown. Write `{phase-dir}/{phase}-VERIFICATION.md` with frontmatter: phase, tier, result (PASS|FAIL|PARTIAL), passed, failed, total, date. Body: QA output.
+5. **Present:** Per @${CLAUDE_PLUGIN_ROOT}/references/vbw-brand-essentials.md:
 ```
 ┌──────────────────────────────────────────┐
 │  Phase {N}: {name} -- Verified           │
@@ -117,13 +62,4 @@ Display using `${CLAUDE_PLUGIN_ROOT}/references/vbw-brand-essentials.md`:
   Report:   {path to VERIFICATION.md}
 
 ```
-Run `bash ${CLAUDE_PLUGIN_ROOT}/scripts/suggest-next.sh qa {result}` and display the output. Pass the QA result (pass/fail/partial) as the second argument.
-
-## Output Format
-
-Follow @${CLAUDE_PLUGIN_ROOT}/references/vbw-brand-essentials.md:
-- Single-line box for verification banner
-- Metrics Block for tier/result/checks
-- Semantic symbols: ✓ PASS, ✗ FAIL, ◆ PARTIAL
-- Next Up Block for navigation
-- No ANSI color codes
+Run `bash ${CLAUDE_PLUGIN_ROOT}/scripts/suggest-next.sh qa {result}` and display.
