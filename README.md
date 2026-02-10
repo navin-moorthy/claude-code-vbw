@@ -182,6 +182,7 @@ For the "I'll just prompt carefully" crowd.
 | Hook failure blocks your session | Universal hook wrapper -- errors logged, session always continues |
 | Install plugin, stare at blank screen | Branded welcome with single call to action on first run |
 | Memorize flags for each command | Consistent argument hints on all 27 commands with discoverable flags |
+| Change 3-4 settings to switch work mode | Work profiles: one command to switch between prototype, production, and yolo modes |
 
 <br>
 
@@ -475,7 +476,8 @@ Phase numbers are optional -- when omitted, VBW auto-detects the next phase base
 | `/vbw:pause` | Save session notes for next time. State auto-persists in `.vbw-planning/` -- pause just lets you leave a sticky note for future you. |
 | `/vbw:resume` | Restore project context from `.vbw-planning/` ground truth. Reads state, roadmap, plans, and summaries directly -- no prior `/vbw:pause` needed. |
 | `/vbw:skills` | Browse and install community skills from skills.sh based on your project's tech stack. Detects your stack, suggests relevant skills, and installs them with one command. |
-| `/vbw:config` | View and toggle VBW settings: effort profiles, autonomy levels (cautious/standard/confident/pure-vibe), plain-language summaries (`plain_summary`), skill suggestions, auto-install behavior, and skill-hook wiring. |
+| `/vbw:config` | View and toggle VBW settings: effort profiles, autonomy levels (cautious/standard/confident/pure-vibe), plain-language summaries (`plain_summary`), skill suggestions, auto-install behavior, and skill-hook wiring. Detects profile drift and offers to save as new profile. |
+| `/vbw:profile` | Switch between work profiles or create custom ones. 4 built-in presets (default, prototype, production, yolo) change effort, autonomy, and verification in one command. Interactive profile creation for custom workflows. |
 | `/vbw:help` | Command reference with usage examples. You are reading its output's spiritual ancestor right now. |
 
 <br>
@@ -604,6 +606,14 @@ Not every task deserves the same level of scrutiny. Most of yours don't. VBW pro
 ```
 /vbw:plan 3 --effort=turbo
 /vbw:implement --effort=thorough
+```
+
+Or switch effort, autonomy, and verification together with `/vbw:profile`:
+
+```
+/vbw:profile prototype    → fast + confident + quick
+/vbw:profile production   → thorough + cautious + deep
+/vbw:profile yolo         → turbo + pure-vibe + skip
 ```
 
 <br>
