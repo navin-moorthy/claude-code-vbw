@@ -75,6 +75,35 @@ update_roadmap() {
   mv "$tmp" "$roadmap" 2>/dev/null || rm -f "$tmp" 2>/dev/null
 }
 
+update_model_profile() {
+  local state_md=".vbw-planning/STATE.md"
+
+  [ -f "$state_md" ] || return 0
+
+  # Read active model profile from config
+  local model_profile
+  model_profile=$(jq -r '.model_profile // "balanced"' .vbw-planning/config.json 2>/dev/null || echo "balanced")
+
+  # Check if Codebase Profile section exists
+  if ! grep -q "^## Codebase Profile" "$state_md" 2>/dev/null; then
+    return 0
+  fi
+
+  # Check if Model Profile line already exists
+  if grep -q "^- \*\*Model Profile:\*\*" "$state_md" 2>/dev/null; then
+    # Update existing line
+    local tmp="${state_md}.tmp.$$"
+    sed "s/^- \*\*Model Profile:\*\*.*/- **Model Profile:** ${model_profile}/" "$state_md" > "$tmp" 2>/dev/null && \
+      mv "$tmp" "$state_md" 2>/dev/null || rm -f "$tmp" 2>/dev/null
+  else
+    # Insert after Test Coverage line
+    local tmp="${state_md}.tmp.$$"
+    sed "/^- \*\*Test Coverage:\*\*/a\\
+- **Model Profile:** ${model_profile}" "$state_md" > "$tmp" 2>/dev/null && \
+      mv "$tmp" "$state_md" 2>/dev/null || rm -f "$tmp" 2>/dev/null
+  fi
+}
+
 advance_phase() {
   local phase_dir="$1"
   local state_md=".vbw-planning/STATE.md"
@@ -192,6 +221,7 @@ jq --arg phase "$PHASE" --arg plan "$PLAN" --arg status "$STATUS" '
 
 update_state_md "$(dirname "$FILE_PATH")"
 update_roadmap "$(dirname "$FILE_PATH")"
+update_model_profile
 advance_phase "$(dirname "$FILE_PATH")"
 
 exit 0

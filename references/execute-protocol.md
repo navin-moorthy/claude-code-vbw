@@ -64,6 +64,8 @@ description: |
 activeForm: "Executing {NN-MM}"
 ```
 
+Display: `◆ Spawning Dev teammate (${DEV_MODEL})...`
+
 **CRITICAL:** Pass `model: "${DEV_MODEL}"` parameter to the Task tool invocation when spawning Dev teammates.
 
 Wire dependencies via TaskUpdate: read `depends_on` from each plan's frontmatter, add `addBlockedBy: [task IDs of dependency plans]`. Plans with empty depends_on start immediately.
@@ -120,6 +122,8 @@ If `--skip-qa` or turbo: "○ QA verification skipped ({reason})"
 This produces `{phase-dir}/.context-qa.md` with phase goal, success criteria, requirements to verify, and conventions.
 If compilation fails, proceed without it.
 
+Display: `◆ Spawning QA agent (${QA_MODEL})...`
+
 **Per-wave QA (Thorough/Balanced, QA_TIMING=per-wave):** After each wave completes, spawn QA concurrently with next wave's Dev work. QA receives only completed wave's PLAN.md + SUMMARY.md + "Phase context: {phase-dir}/.context-qa.md (if compiled). Model: ${QA_MODEL}. Your verification tier is {tier}. Run {5-10|15-25|30+} checks per the tier definitions in your agent protocol." After final wave, spawn integration QA covering all plans + cross-plan integration. Persist to `{phase-dir}/{phase}-VERIFICATION-wave{W}.md` and `{phase}-VERIFICATION.md`.
 
 **Post-build QA (Fast, QA_TIMING=post-build):** Spawn QA after ALL plans complete. Include in task description: "Phase context: {phase-dir}/.context-qa.md (if compiled). Model: ${QA_MODEL}. Your verification tier is {tier}. Run {5-10|15-25|30+} checks per the tier definitions in your agent protocol." Persist to `{phase-dir}/{phase}-VERIFICATION.md`.
@@ -144,7 +148,7 @@ Display per @${CLAUDE_PLUGIN_ROOT}/references/vbw-brand-essentials.md:
     ✓ Plan 01: {title}  /  ✗ Plan 03: {title} (failed)
 
   Metrics:
-    Plans: {completed}/{total}  Effort: {profile}  Deviations: {count}
+    Plans: {completed}/{total}  Effort: {profile}  Model Profile: {profile}  Deviations: {count}
 
   QA: {PASS|PARTIAL|FAIL|skipped}
 ```

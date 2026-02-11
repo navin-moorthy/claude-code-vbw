@@ -36,6 +36,7 @@ Recent commits:
   DEBUGGER_MODEL=$(bash ${CLAUDE_PLUGIN_ROOT}/scripts/resolve-agent-model.sh debugger .vbw-planning/config.json ${CLAUDE_PLUGIN_ROOT}/config/model-profiles.json)
   if [ $? -ne 0 ]; then echo "$DEBUGGER_MODEL" >&2; exit 1; fi
   ```
+- Display: `◆ Spawning Debugger (${DEBUGGER_MODEL})...`
 - Create Agent Team "debug-{timestamp}" via TeamCreate
 - Create 3 tasks via TaskCreate, each with: bug report, ONE hypothesis only (no cross-contamination), working dir, instruction to report via `debugger_report` schema (see `${CLAUDE_PLUGIN_ROOT}/references/handoff-schemas.md`)
 - Spawn 3 vbw-debugger teammates, one task each. **Add `model: "${DEBUGGER_MODEL}"` parameter to each Task spawn.**
@@ -49,6 +50,7 @@ Recent commits:
   DEBUGGER_MODEL=$(bash ${CLAUDE_PLUGIN_ROOT}/scripts/resolve-agent-model.sh debugger .vbw-planning/config.json ${CLAUDE_PLUGIN_ROOT}/config/model-profiles.json)
   if [ $? -ne 0 ]; then echo "$DEBUGGER_MODEL" >&2; exit 1; fi
   ```
+- Display: `◆ Spawning Debugger (${DEBUGGER_MODEL})...`
 - Spawn vbw-debugger as subagent via Task tool. **Add `model: "${DEBUGGER_MODEL}"` parameter.**
 ```
 Bug investigation. Effort: {DEBUGGER_EFFORT}.

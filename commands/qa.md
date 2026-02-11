@@ -46,6 +46,7 @@ Note: Continuous verification handled by hooks. This command is for deep, on-dem
      QA_MODEL=$(bash ${CLAUDE_PLUGIN_ROOT}/scripts/resolve-agent-model.sh qa .vbw-planning/config.json ${CLAUDE_PLUGIN_ROOT}/config/model-profiles.json)
      if [ $? -ne 0 ]; then echo "$QA_MODEL" >&2; exit 1; fi
      ```
+   - Display: `◆ Spawning QA agent (${QA_MODEL})...`
    - Spawn vbw-qa as subagent via Task tool. **Add `model: "${QA_MODEL}"` parameter.**
 ```
 Verify phase {N}. Tier: {ACTIVE_TIER}.

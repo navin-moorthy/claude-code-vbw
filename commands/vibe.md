@@ -188,7 +188,18 @@ If `planning_dir_exists=false`: display "Run /vbw:init first to set up your proj
    - **CRITICAL:** Add `model: "${LEAD_MODEL}"` parameter to the Task tool invocation.
    - Display `◆ Spawning Lead agent...` -> `✓ Lead agent complete`.
 6. **Validate output:** Verify PLAN.md has valid frontmatter (phase, plan, title, wave, depends_on, must_haves) and tasks. Check wave deps acyclic.
-7. **Present:** Update STATE.md (phase position, plan count, status=Planned). Display Phase Banner with plan list, effort level.
+7. **Present:** Update STATE.md (phase position, plan count, status=Planned). Resolve model profile:
+   ```bash
+   MODEL_PROFILE=$(jq -r '.model_profile // "balanced"' .vbw-planning/config.json)
+   ```
+   Display Phase Banner with plan list, effort level, and model profile:
+   ```
+   Phase {N}: {name}
+   Plans: {N}
+     {plan}: {title} (wave {W}, {N} tasks)
+   Effort: {effort}
+   Model Profile: {profile}
+   ```
 8. **Cautious gate (autonomy=cautious only):** STOP after planning. Ask "Plans ready. Execute Phase {N}?" Other levels: auto-chain.
 
 ### Mode: Execute

@@ -30,6 +30,7 @@ Current project:
      SCOUT_MODEL=$(bash ${CLAUDE_PLUGIN_ROOT}/scripts/resolve-agent-model.sh scout .vbw-planning/config.json ${CLAUDE_PLUGIN_ROOT}/config/model-profiles.json)
      if [ $? -ne 0 ]; then echo "$SCOUT_MODEL" >&2; exit 1; fi
      ```
+   - Display: `◆ Spawning Scout (${SCOUT_MODEL})...`
    - Spawn vbw-scout as subagent(s) via Task tool. **Add `model: "${SCOUT_MODEL}"` parameter.**
 ```
 Research: {topic or sub-topic}.
