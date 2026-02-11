@@ -2,6 +2,29 @@
 
 All notable changes to VBW will be documented in this file.
 
+## [1.10.14] - 2026-02-11
+
+### Added
+
+- **`model-profiles`** -- cost control via model profile configuration. Three preset profiles (quality/balanced/budget) with per-agent model assignments, plus per-agent override support for advanced users.
+- **`config`** -- model profile selection in `/vbw:config` interactive menu with quality/balanced/budget options. Settings table displays current profile and all 6 agent model assignments.
+- **`config`** -- CLI arguments `/vbw:config model_profile <profile>` for direct profile switching and `/vbw:config model_override <agent> <model>` for per-agent overrides.
+- **`vibe`** -- Phase Banner displays active model profile during Plan and Execute modes.
+- **`execute-protocol`** -- agent spawn messages include model name in parentheses format: "◆ Spawning {agent} ({model})...".
+- **`model-routing`** -- agent model resolution helper script (`scripts/resolve-agent-model.sh`) with hybrid architecture pattern: commands read config, helper handles merge/override logic.
+- **`init`** -- new projects seeded with `model_profile: "balanced"` in config.json.
+- **`session-start`, `suggest-next`, `statusline`** -- auto-migration adds `model_profile: "balanced"` to existing projects without the field.
+
+### Changed
+
+- **`vibe`, `execute-protocol`, `debug`, `research`, `qa`** -- all agent-spawning commands now pass explicit `model` parameter to Task tool based on active profile and overrides.
+- **`references`** -- new `model-profiles.md` with complete preset definitions, cost comparison table, and override syntax documentation.
+- **`effort-profiles`** -- all 4 effort profile files updated to clarify effort controls planning depth while model profile controls cost.
+- **`help`** -- Model Profiles section added with command examples and cost estimates.
+- **`README`** -- Cost Optimization section added with 3-profile comparison table and usage guidance.
+
+---
+
 ## [1.10.13] - 2026-02-11
 
 ### Fixed
