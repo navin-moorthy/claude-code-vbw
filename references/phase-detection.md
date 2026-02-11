@@ -1,12 +1,12 @@
 # VBW Phase Auto-Detection Protocol
 
-Single source of truth for detecting the target phase when the user omits the phase number from a command. Referenced by `${CLAUDE_PLUGIN_ROOT}/commands/plan.md`, `${CLAUDE_PLUGIN_ROOT}/commands/execute.md`, `${CLAUDE_PLUGIN_ROOT}/commands/qa.md`, `${CLAUDE_PLUGIN_ROOT}/commands/discuss.md`, `${CLAUDE_PLUGIN_ROOT}/commands/assumptions.md`, `${CLAUDE_PLUGIN_ROOT}/commands/implement.md`.
+Single source of truth for detecting the target phase when the user omits the phase number from a command. Referenced by `${CLAUDE_PLUGIN_ROOT}/commands/vibe.md`, `${CLAUDE_PLUGIN_ROOT}/commands/qa.md`.
 
 ## Overview
 
 When `$ARGUMENTS` contains no explicit phase number, commands use this protocol to infer the correct phase from the current planning state. Detection logic varies by command type because each command targets a different stage of the phase lifecycle.
 
-Note: `/vbw:implement` has additional state detection that precedes phase scanning (see its State Detection section). The algorithms below are used once the command has determined that phase-level detection is needed.
+Note: `/vbw:vibe` has additional state detection that precedes phase scanning (see its State Detection section). The algorithms below are used once the command has determined that phase-level detection is needed.
 
 ## Resolve Phases Directory
 
@@ -20,7 +20,7 @@ All directory scanning below uses the resolved phases directory.
 
 ## Detection by Command Type
 
-### Planning Commands (`/vbw:plan`, `/vbw:discuss`, `/vbw:assumptions`)
+### Planning Commands (`/vbw:vibe --plan`, `/vbw:vibe --discuss`, `/vbw:vibe --assumptions`)
 
 **Goal:** Find the next phase that needs planning.
 
@@ -29,9 +29,9 @@ All directory scanning below uses the resolved phases directory.
 2. For each directory, check for `*-PLAN.md` files
 3. The first phase directory containing NO `*-PLAN.md` files is the target
 4. If found: use that phase
-5. If all phases have plans: report "All phases are planned. Specify a phase to re-plan: `/vbw:plan N`" and STOP
+5. If all phases have plans: report "All phases are planned. Specify a phase to re-plan: `/vbw:vibe --plan N`" and STOP
 
-### Build Command (`/vbw:execute`)
+### Build Command (`/vbw:vibe --execute`)
 
 **Goal:** Find the next phase that is planned but not yet built.
 
@@ -40,7 +40,7 @@ All directory scanning below uses the resolved phases directory.
 2. For each directory, check for `*-PLAN.md` and `*-SUMMARY.md` files
 3. The first phase where `*-PLAN.md` files exist but at least one plan lacks a corresponding `*-SUMMARY.md` is the target
 4. If found: use that phase
-5. If all planned phases are fully built: report "All planned phases are built. Specify a phase to rebuild: `/vbw:execute N`" and STOP
+5. If all planned phases are fully built: report "All planned phases are built. Specify a phase to rebuild: `/vbw:vibe --execute N`" and STOP
 
 **Matching logic:** Plan file `NN-PLAN.md` corresponds to summary file `NN-SUMMARY.md` (same numeric prefix).
 
@@ -55,9 +55,9 @@ All directory scanning below uses the resolved phases directory.
 4. If found: use that phase
 5. If all built phases are verified: report "All phases verified. Specify a phase to re-verify: `/vbw:qa N`" and STOP
 
-### Implement Command (`/vbw:implement`)
+### Lifecycle Command (`/vbw:vibe`)
 
-> **v2 State Machine:** As of v2, `/vbw:implement` uses a state machine that checks for project existence, phase existence, and completion status BEFORE reaching phase detection. The algorithm below only runs for States 3-4 (phases exist but need planning or execution). States 1 (no project), 2 (no phases), and 5 (all done) are detected by the state machine and never reach this algorithm. See `commands/implement.md` State Detection section for the full routing logic.
+> **v2 State Machine:** As of v2, `/vbw:vibe` uses a state machine that checks for project existence, phase existence, and completion status BEFORE reaching phase detection. The algorithm below only runs for States 3-4 (phases exist but need planning or execution). States 1 (no project), 2 (no phases), and 5 (all done) are detected by the state machine and never reach this algorithm. See `commands/vibe.md` State Detection section for the full routing logic.
 
 **Goal:** Find the next phase that needs either planning or execution (or both). Used by States 3-4 of the implement state machine.
 
@@ -68,7 +68,7 @@ All directory scanning below uses the resolved phases directory.
    - **Needs plan + execute:** Directory contains NO `*-PLAN.md` files
    - **Needs execute only:** Directory contains `*-PLAN.md` files but at least one plan lacks a corresponding `*-SUMMARY.md`
 4. If found: use that phase, noting which condition matched
-5. If all phases are fully built: report "All phases are implemented. Specify a phase: `/vbw:implement N`" and STOP
+5. If all phases are fully built: report "All phases are implemented. Specify a phase: `/vbw:vibe N`" and STOP
 
 **Matching logic:** Same as Build Command -- Plan file `NN-PLAN.md` corresponds to summary file `NN-SUMMARY.md` (same numeric prefix).
 
