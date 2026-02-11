@@ -42,17 +42,29 @@ This produces `{phase-dir}/.context-dev.md` with phase goal and conventions.
 The plan_path argument enables skill bundling: compile-context.sh reads skills_used from the plan's frontmatter and bundles referenced SKILL.md content into .context-dev.md. If the plan has no skills_used, this is a no-op.
 If compilation fails, proceed without it — Dev reads files directly.
 
+**Model resolution:** Resolve models for Dev and QA agents:
+```bash
+DEV_MODEL=$(bash ${CLAUDE_PLUGIN_ROOT}/scripts/resolve-agent-model.sh dev .vbw-planning/config.json ${CLAUDE_PLUGIN_ROOT}/config/model-profiles.json)
+if [ $? -ne 0 ]; then echo "$DEV_MODEL" >&2; exit 1; fi
+
+QA_MODEL=$(bash ${CLAUDE_PLUGIN_ROOT}/scripts/resolve-agent-model.sh qa .vbw-planning/config.json ${CLAUDE_PLUGIN_ROOT}/config/model-profiles.json)
+if [ $? -ne 0 ]; then echo "$QA_MODEL" >&2; exit 1; fi
+```
+
 For each uncompleted plan, TaskCreate:
 ```
 subject: "Execute {NN-MM}: {plan-title}"
 description: |
   Execute all tasks in {PLAN_PATH}.
   Effort: {DEV_EFFORT}. Working directory: {pwd}.
+  Model: ${DEV_MODEL}
   Phase context: {phase-dir}/.context-dev.md (if compiled)
   {If resuming: "Resume from Task {N}. Tasks 1-{N-1} already committed."}
   {If autonomous: false: "This plan has checkpoints -- pause for user input."}
 activeForm: "Executing {NN-MM}"
 ```
+
+**CRITICAL:** Pass `model: "${DEV_MODEL}"` parameter to the Task tool invocation when spawning Dev teammates.
 
 Wire dependencies via TaskUpdate: read `depends_on` from each plan's frontmatter, add `addBlockedBy: [task IDs of dependency plans]`. Plans with empty depends_on start immediately.
 
@@ -108,9 +120,11 @@ If `--skip-qa` or turbo: "○ QA verification skipped ({reason})"
 This produces `{phase-dir}/.context-qa.md` with phase goal, success criteria, requirements to verify, and conventions.
 If compilation fails, proceed without it.
 
-**Per-wave QA (Thorough/Balanced, QA_TIMING=per-wave):** After each wave completes, spawn QA concurrently with next wave's Dev work. QA receives only completed wave's PLAN.md + SUMMARY.md + "Phase context: {phase-dir}/.context-qa.md (if compiled). Your verification tier is {tier}. Run {5-10|15-25|30+} checks per the tier definitions in your agent protocol." After final wave, spawn integration QA covering all plans + cross-plan integration. Persist to `{phase-dir}/{phase}-VERIFICATION-wave{W}.md` and `{phase}-VERIFICATION.md`.
+**Per-wave QA (Thorough/Balanced, QA_TIMING=per-wave):** After each wave completes, spawn QA concurrently with next wave's Dev work. QA receives only completed wave's PLAN.md + SUMMARY.md + "Phase context: {phase-dir}/.context-qa.md (if compiled). Model: ${QA_MODEL}. Your verification tier is {tier}. Run {5-10|15-25|30+} checks per the tier definitions in your agent protocol." After final wave, spawn integration QA covering all plans + cross-plan integration. Persist to `{phase-dir}/{phase}-VERIFICATION-wave{W}.md` and `{phase}-VERIFICATION.md`.
 
-**Post-build QA (Fast, QA_TIMING=post-build):** Spawn QA after ALL plans complete. Include in task description: "Phase context: {phase-dir}/.context-qa.md (if compiled). Your verification tier is {tier}. Run {5-10|15-25|30+} checks per the tier definitions in your agent protocol." Persist to `{phase-dir}/{phase}-VERIFICATION.md`.
+**Post-build QA (Fast, QA_TIMING=post-build):** Spawn QA after ALL plans complete. Include in task description: "Phase context: {phase-dir}/.context-qa.md (if compiled). Model: ${QA_MODEL}. Your verification tier is {tier}. Run {5-10|15-25|30+} checks per the tier definitions in your agent protocol." Persist to `{phase-dir}/{phase}-VERIFICATION.md`.
+
+**CRITICAL:** Pass `model: "${QA_MODEL}"` parameter to the Task tool invocation when spawning QA agents.
 
 ### Step 5: Update state and present summary
 
