@@ -142,12 +142,19 @@ Schema ref: `${CLAUDE_PLUGIN_ROOT}/references/handoff-schemas.md`
 
 | Effort | Messages sent |
 |--------|--------------|
-| Thorough | blockers (dev_blocker), cross-cutting findings, progress (dev_progress), design debates to lead |
-| Balanced | blockers (dev_blocker), cross-cutting findings |
-| Fast | blockers only (dev_blocker) |
+| Thorough | blockers (blocker_report), findings (scout_findings), progress (execution_update), contracts (plan_contract) |
+| Balanced | blockers (blocker_report), progress (execution_update) |
+| Fast | blockers only (blocker_report) |
 | Turbo | N/A (no team) |
 
 Use targeted `message` not `broadcast`. Reserve broadcast for critical blocking issues only.
+
+**V2 Typed Protocol (REQ-04, REQ-05):** If `v2_typed_protocol=true` in config:
+- **On message receive** (from any teammate): validate before processing:
+  `VALID=$(echo "$MESSAGE_JSON" | bash ${CLAUDE_PLUGIN_ROOT}/scripts/validate-message.sh 2>/dev/null || echo '{"valid":true}')`
+  If `valid=false`: log rejection, send error back to sender with `errors` array. Do not process the message.
+- **On message send** (before sending): agents should construct messages using full V2 envelope (id, type, phase, task, author_role, timestamp, schema_version, payload, confidence). Reference `${CLAUDE_PLUGIN_ROOT}/references/handoff-schemas.md` for schema details.
+- **Backward compatibility:** When `v2_typed_protocol=false`, validation is skipped. Old-format messages accepted.
 
 **Execution state updates:**
 - Task completion: update plan status in .execution-state.json (`"complete"` or `"failed"`)
