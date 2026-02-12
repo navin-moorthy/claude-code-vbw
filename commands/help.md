@@ -45,6 +45,29 @@ See: @references/model-profiles.md for full preset definitions and cost comparis
 Optional: /vbw:config model_profile <quality|balanced|budget> to optimize cost
 `/vbw:help <command>` for details.
 
+## GSD Import
+
+Migrating from GSD? VBW automatically detects existing GSD projects during initialization.
+
+**During /vbw:init:**
+- Detects `.planning/` directory (GSD's planning folder)
+- Prompts: "GSD project detected. Import work history?"
+- If approved: copies `.planning/` to `.vbw-planning/gsd-archive/` (original preserved)
+- Generates INDEX.json with phase metadata, milestones, and quick paths
+- Continues with normal VBW initialization
+
+**What's archived:**
+- All GSD planning files (ROADMAP, PROJECT, phases, summaries, plans)
+- Lightweight JSON index for fast agent reference
+- Original `.planning/` remains untouched (continues working with GSD if needed)
+
+**After import:**
+- VBW agents can reference archived GSD files when needed
+- Index provides quick lookup: phases completed, milestones, key file paths
+- GSD isolation can be enabled to prevent cross-contamination
+
+See: /vbw:init for the import flow, docs/migration-gsd-to-vbw.md for detailed migration guide.
+
 ## Output Format
 
 Follow @${CLAUDE_PLUGIN_ROOT}/references/vbw-brand-essentials.md — double-line box, ✓ available, ➜ Getting Started, no ANSI.
