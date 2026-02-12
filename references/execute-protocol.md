@@ -196,7 +196,11 @@ All metrics calls should be `2>/dev/null || true` — never block execution.
 **V2 Hard Gates (REQ-02, REQ-03):** If `v2_hard_gates=true` in config:
 - **Pre-task gate sequence (before each task starts):**
   1. `contract_compliance` gate: `bash ${CLAUDE_PLUGIN_ROOT}/scripts/hard-gate.sh contract_compliance {phase} {plan} {task} {contract_path}`
-  2. `protected_file` gate: `bash ${CLAUDE_PLUGIN_ROOT}/scripts/hard-gate.sh protected_file {phase} {plan} {task} {contract_path}`
+  2. **Lease acquisition** (V2 control plane): acquire exclusive file lease before protected_file check:
+     - If `v3_lease_locks=true`: `bash ${CLAUDE_PLUGIN_ROOT}/scripts/lease-lock.sh acquire {task_id} --ttl=300 {claimed_files...}`
+     - Else if `v3_lock_lite=true`: `bash ${CLAUDE_PLUGIN_ROOT}/scripts/lock-lite.sh acquire {task_id} {claimed_files...}`
+     - Lease conflict → auto-repair attempt (wait + re-acquire), then escalate blocker if unresolved.
+  3. `protected_file` gate: `bash ${CLAUDE_PLUGIN_ROOT}/scripts/hard-gate.sh protected_file {phase} {plan} {task} {contract_path}`
   - If any gate fails (exit 2): attempt auto-repair:
     `REPAIR=$(bash ${CLAUDE_PLUGIN_ROOT}/scripts/auto-repair.sh {gate_type} {phase} {plan} {task} {contract_path})`
   - If `repaired=true`: re-run the failed gate to confirm, then proceed.
@@ -204,6 +208,9 @@ All metrics calls should be `2>/dev/null || true` — never block execution.
 - **Post-task gate sequence (after each task commit):**
   1. `required_checks` gate: `bash ${CLAUDE_PLUGIN_ROOT}/scripts/hard-gate.sh required_checks {phase} {plan} {task} {contract_path}`
   2. `commit_hygiene` gate: `bash ${CLAUDE_PLUGIN_ROOT}/scripts/hard-gate.sh commit_hygiene {phase} {plan} {task} {contract_path}`
+  3. **Lease release**: release file lease after task completes:
+     - If `v3_lease_locks=true`: `bash ${CLAUDE_PLUGIN_ROOT}/scripts/lease-lock.sh release {task_id}`
+     - Else if `v3_lock_lite=true`: `bash ${CLAUDE_PLUGIN_ROOT}/scripts/lock-lite.sh release {task_id}`
   - Gate failures trigger auto-repair with same flow as pre-task.
 - **Post-plan gate (after all tasks complete, before marking plan done):**
   1. `artifact_persistence` gate: `bash ${CLAUDE_PLUGIN_ROOT}/scripts/hard-gate.sh artifact_persistence {phase} {plan} {task} {contract_path}`
