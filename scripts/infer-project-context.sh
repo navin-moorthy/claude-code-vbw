@@ -74,4 +74,135 @@ fi
 NAME_JSON=$(jq -n --arg v "$NAME_VALUE" --arg s "$NAME_SOURCE" \
   '{value: $v, source: $s}')
 
+# --- Tech stack extraction from STACK.md ---
+STACK_FILE="$CODEBASE_DIR/STACK.md"
+if [[ -f "$STACK_FILE" ]]; then
+  # Extract languages from the Languages table and technologies from Key Technologies
+  stack_items=()
+
+  # Parse Languages table: lines matching "| Language |" pattern (skip header/separator)
+  while IFS= read -r line; do
+    lang=$(echo "$line" | sed 's/^| *//' | sed 's/ *|.*//')
+    if [[ -n "$lang" && "$lang" != "Language" && "$lang" != "-"* ]]; then
+      stack_items+=("$lang")
+    fi
+  done < <(grep -E '^\| ' "$STACK_FILE" | grep -v '^\| Language' | grep -v '^\|--' || true)
+
+  # Parse Key Technologies: lines starting with "- **name**"
+  while IFS= read -r line; do
+    tech=$(echo "$line" | sed 's/^- \*\*//' | sed 's/\*\*.*//')
+    if [[ -n "$tech" ]]; then
+      stack_items+=("$tech")
+    fi
+  done < <(grep -E '^- \*\*' "$STACK_FILE" | grep -v '^- \*\*Claude Code Plugin' | grep -v '^- \*\*Runtime:' | grep -v '^- \*\*Config:' | grep -v '^- \*\*Plugin system:' | grep -v '^- \*\*Distribution:' | grep -v '^- \*\*Configuration:' | grep -v '^- \*\*Per-agent' | grep -v '^- \*\*Explicit' || true)
+
+  if [[ ${#stack_items[@]} -gt 0 ]]; then
+    STACK_JSON=$(printf '%s\n' "${stack_items[@]}" | jq -R . | jq -s '{value: ., source: "STACK.md"}')
+  else
+    STACK_JSON='{"value": null, "source": null}'
+  fi
+else
+  STACK_JSON='{"value": null, "source": null}'
+fi
+
+# --- Architecture extraction from ARCHITECTURE.md ---
+ARCH_FILE="$CODEBASE_DIR/ARCHITECTURE.md"
+if [[ -f "$ARCH_FILE" ]]; then
+  # Extract the Overview section (first paragraph after ## Overview)
+  arch_text=""
+  in_overview=false
+  while IFS= read -r line; do
+    if [[ "$line" == "## Overview" ]]; then
+      in_overview=true
+      continue
+    fi
+    if $in_overview; then
+      if [[ "$line" == "##"* ]]; then
+        break
+      fi
+      if [[ -n "$line" ]]; then
+        if [[ -n "$arch_text" ]]; then
+          arch_text="$arch_text $line"
+        else
+          arch_text="$line"
+        fi
+      fi
+    fi
+  done < "$ARCH_FILE"
+
+  if [[ -n "$arch_text" ]]; then
+    ARCH_JSON=$(jq -n --arg v "$arch_text" '{value: $v, source: "ARCHITECTURE.md"}')
+  else
+    ARCH_JSON='{"value": null, "source": null}'
+  fi
+else
+  ARCH_JSON='{"value": null, "source": null}'
+fi
+
+# --- Purpose extraction from CONCERNS.md ---
+CONCERNS_FILE="$CODEBASE_DIR/CONCERNS.md"
+if [[ -f "$CONCERNS_FILE" ]]; then
+  # Extract the document title (first # heading) and first concern as domain indicator
+  purpose_text=""
+  while IFS= read -r line; do
+    if [[ "$line" == "# "* ]]; then
+      purpose_text=$(echo "$line" | sed 's/^# //')
+      break
+    fi
+  done < "$CONCERNS_FILE"
+
+  # Also extract concern headings as domain signals
+  concerns=()
+  while IFS= read -r line; do
+    concern=$(echo "$line" | sed 's/^## //')
+    concerns+=("$concern")
+  done < <(grep -E '^## ' "$CONCERNS_FILE" || true)
+
+  if [[ -n "$purpose_text" && ${#concerns[@]} -gt 0 ]]; then
+    concern_list=$(printf '%s\n' "${concerns[@]}" | jq -R . | jq -s 'join(", ")')
+    PURPOSE_JSON=$(jq -n --arg title "$purpose_text" --argjson concerns "$concern_list" \
+      '{value: ($title + " — key concerns: " + $concerns), source: "CONCERNS.md"}')
+  elif [[ -n "$purpose_text" ]]; then
+    PURPOSE_JSON=$(jq -n --arg v "$purpose_text" '{value: $v, source: "CONCERNS.md"}')
+  else
+    PURPOSE_JSON='{"value": null, "source": null}'
+  fi
+else
+  PURPOSE_JSON='{"value": null, "source": null}'
+fi
+
+# --- Features extraction from INDEX.md ---
+INDEX_FILE="$CODEBASE_DIR/INDEX.md"
+if [[ -f "$INDEX_FILE" ]]; then
+  # Extract Cross-Cutting Themes section (bullet points after ## Cross-Cutting Themes)
+  features=()
+  in_themes=false
+  while IFS= read -r line; do
+    if [[ "$line" == "## Cross-Cutting Themes" ]]; then
+      in_themes=true
+      continue
+    fi
+    if $in_themes; then
+      if [[ "$line" == "##"* ]]; then
+        break
+      fi
+      if [[ "$line" == "- "* ]]; then
+        # Extract the bold title from each bullet: "- **Title**: description"
+        feature=$(echo "$line" | sed 's/^- \*\*//' | sed 's/\*\*:.*//')
+        if [[ -n "$feature" ]]; then
+          features+=("$feature")
+        fi
+      fi
+    fi
+  done < "$INDEX_FILE"
+
+  if [[ ${#features[@]} -gt 0 ]]; then
+    FEATURES_JSON=$(printf '%s\n' "${features[@]}" | jq -R . | jq -s '{value: ., source: "INDEX.md"}')
+  else
+    FEATURES_JSON='{"value": null, "source": null}'
+  fi
+else
+  FEATURES_JSON='{"value": null, "source": null}'
+fi
+
 exit 0
