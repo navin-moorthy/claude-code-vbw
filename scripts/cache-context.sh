@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -u
 
 # cache-context.sh <phase> <role> [config-path] [plan-path]
 # Computes deterministic cache key for compiled context and checks cache.
 # Output: "hit <hash> <cached-path>" or "miss <hash>"
 # Exit 0 always (caller decides what to do).
+# Uses set -u only (not -e) — this script must never fail fatally.
 
 if [ $# -lt 2 ]; then
   echo "Usage: cache-context.sh <phase> <role> [config-path] [plan-path]" >&2

@@ -73,13 +73,15 @@ if [ "$V3_CACHE_ENABLED" = "true" ] && [ -f "${SCRIPT_DIR}/cache-context.sh" ]; 
   if [ "$CACHE_STATUS" = "hit" ]; then
     CACHED_PATH=$(echo "$CACHE_RESULT" | cut -d' ' -f3)
     OUTPUT_PATH="${PHASE_DIR}/.context-${ROLE}.md"
-    cp "$CACHED_PATH" "$OUTPUT_PATH" 2>/dev/null || true
-    if [ -f "$OUTPUT_PATH" ]; then
+    if cp "$CACHED_PATH" "$OUTPUT_PATH" 2>/dev/null; then
       echo "$OUTPUT_PATH"
       exit 0
+    else
+      echo "V3 fallback: cache copy failed for ${ROLE}, compiling fresh" >&2
     fi
-    # Fallthrough: if copy failed, compile fresh
   fi
+elif [ "$V3_CACHE_ENABLED" = "true" ]; then
+  echo "V3 fallback: cache-context.sh not found, skipping cache" >&2
 fi
 
 # --- Role-specific output ---
@@ -266,8 +268,11 @@ esac
 # --- V3: Cache the compiled result ---
 if [ "$V3_CACHE_ENABLED" = "true" ] && [ -n "$CACHE_HASH" ] && [ "$CACHE_HASH" != "nohash" ]; then
   CACHE_DIR="${PLANNING_DIR}/.cache/context"
-  mkdir -p "$CACHE_DIR" 2>/dev/null || true
-  cp "${PHASE_DIR}/.context-${ROLE}.md" "${CACHE_DIR}/${CACHE_HASH}.md" 2>/dev/null || true
+  if mkdir -p "$CACHE_DIR" 2>/dev/null; then
+    cp "${PHASE_DIR}/.context-${ROLE}.md" "${CACHE_DIR}/${CACHE_HASH}.md" 2>/dev/null || echo "V3 fallback: cache write failed for ${ROLE}" >&2
+  else
+    echo "V3 fallback: could not create cache dir" >&2
+  fi
 fi
 
 echo "${PHASE_DIR}/.context-${ROLE}.md"
