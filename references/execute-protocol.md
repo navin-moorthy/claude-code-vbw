@@ -74,7 +74,20 @@ Spawn Dev teammates and assign tasks. Platform enforces execution ordering via t
 
 **Blocked agent notification (mandatory):** When a Dev teammate completes a plan (task marked completed + SUMMARY.md verified), check if any other tasks have `blockedBy` containing that completed task's ID. For each newly-unblocked task, send its assigned Dev a message: "Blocking task {id} complete. Your task is now unblocked — proceed with execution." This ensures blocked agents resume without manual intervention.
 
+**V3 Validation Gates (REQ-13, REQ-14):** If `v3_validation_gates=true` in config:
+- **Per plan:** Assess risk and resolve gate policy:
+  ```bash
+  RISK=$(bash ${CLAUDE_PLUGIN_ROOT}/scripts/assess-plan-risk.sh {plan_path} 2>/dev/null || echo "medium")
+  GATE_POLICY=$(bash ${CLAUDE_PLUGIN_ROOT}/scripts/resolve-gate-policy.sh {effort} $RISK {autonomy} 2>/dev/null || echo '{}')
+  ```
+- Extract policy fields: `qa_tier`, `approval_required`, `communication_level`, `two_phase`
+- Use these to override the static tables below for this plan
+- Log to metrics: `bash ${CLAUDE_PLUGIN_ROOT}/scripts/collect-metrics.sh gate_policy {phase} {plan} risk=$RISK qa_tier=$QA_TIER approval=$APPROVAL 2>/dev/null || true`
+- On script error: fall back to static tables below
+
 **Plan approval gate (effort-gated, autonomy-gated):**
+When `v3_validation_gates=true`: use `approval_required` from gate policy above.
+When `v3_validation_gates=false` (default): use static table:
 
 | Autonomy | Approval active at |
 |----------|-------------------|
@@ -85,7 +98,11 @@ Spawn Dev teammates and assign tasks. Platform enforces execution ordering via t
 When active: spawn Devs with `plan_mode_required`. Dev reads PLAN.md, proposes approach, waits for lead approval. Lead approves/rejects via plan_approval_response.
 When off: Devs begin immediately.
 
-**Teammate communication (effort-gated):** Schema ref: `${CLAUDE_PLUGIN_ROOT}/references/handoff-schemas.md`
+**Teammate communication (effort-gated):**
+When `v3_validation_gates=true`: use `communication_level` from gate policy (none/blockers/blockers_findings/full).
+When `v3_validation_gates=false` (default): use static table:
+
+Schema ref: `${CLAUDE_PLUGIN_ROOT}/references/handoff-schemas.md`
 
 | Effort | Messages sent |
 |--------|--------------|
@@ -143,7 +160,8 @@ When a Dev teammate reports plan completion (task marked completed):
 
 If `--skip-qa` or turbo: "○ QA verification skipped ({reason})"
 
-**Tier resolution:** Map effort to tier: turbo=skip (already handled), fast=quick, balanced=standard, thorough=deep. Override: if >15 requirements or last phase before ship, force Deep.
+**Tier resolution:** When `v3_validation_gates=true`: use `qa_tier` from gate policy resolved in Step 3.
+When `v3_validation_gates=false` (default): map effort to tier: turbo=skip (already handled), fast=quick, balanced=standard, thorough=deep. Override: if >15 requirements or last phase before ship, force Deep.
 
 **Context compilation:** If `config_context_compiler=true`, before spawning QA run:
 `bash ${CLAUDE_PLUGIN_ROOT}/scripts/compile-context.sh {phase} qa {phases_dir}`
