@@ -2,7 +2,7 @@
 
 All notable changes to VBW will be documented in this file.
 
-## [1.10.16] - 2026-02-12
+## [1.10.17] - 2026-02-12
 
 ### Added
 
@@ -11,6 +11,13 @@ All notable changes to VBW will be documented in this file.
 - **`scripts`** -- generate-gsd-index.sh for lightweight JSON index generation (<5s performance). Creates INDEX.json with imported_at, gsd_version, phases_total, phases_complete, milestones, quick_paths, and phases array for fast agent reference without full archive scan.
 - **`help`** -- GSD Import section documenting detection flow during /vbw:init, archive structure (.planning/ → gsd-archive/), INDEX.json generation, and isolation options.
 - **`docs`** -- migration-gsd-to-vbw.md comprehensive migration guide (273 lines, 9 sections) covering import process, archive structure, version control best practices, INDEX.json format, usage patterns, GSD isolation, migration strategies (full/incremental/archive-only), troubleshooting scenarios, and FAQ.
+- **`bootstrap`** -- 5 reusable bootstrap scripts in scripts/bootstrap/ (project, requirements, roadmap, state, claude). Each accepts arguments only, outputs to specified path, uses set -euo pipefail. Enables shared file generation between /vbw:init and /vbw:vibe.
+- **`inference`** -- brownfield intelligence engine. infer-project-context.sh (247 lines) reads codebase mapping to extract project name, tech stack, architecture, purpose, and features with source attribution. infer-gsd-summary.sh (163 lines) reads GSD archives for latest milestone, recent phases, key decisions, and current work.
+- **`init`** -- auto-bootstrap flow (Steps 5-8). After infrastructure setup, init detects scenario (greenfield/brownfield/GSD migration/hybrid), runs inference engine, presents always-show confirmation UX with 3 options (accept/adjust/define from scratch), field-level correction, then calls bootstrap scripts to generate all project files. Seamless flow with no pause between mapping and project definition.
+
+### Changed
+
+- **`vibe`** -- Bootstrap mode (B1-B6) refactored to call extracted bootstrap scripts via ${CLAUDE_PLUGIN_ROOT}/scripts/bootstrap/. Discovery logic stays inline, file generation delegated to shared scripts. Verified standalone mode, config compliance, and zero regression across all 11 modes.
 
 ---
 
