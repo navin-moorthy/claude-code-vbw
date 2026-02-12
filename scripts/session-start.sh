@@ -35,6 +35,11 @@ if [ -d "$PLANNING_DIR" ] && [ -f "$PLANNING_DIR/config.json" ]; then
     TMP=$(mktemp)
     jq '. + {v2_two_phase_completion: false}' "$PLANNING_DIR/config.json" > "$TMP" && mv "$TMP" "$PLANNING_DIR/config.json"
   fi
+  # V2 token budgets flag migration
+  if ! jq -e '.v2_token_budgets' "$PLANNING_DIR/config.json" >/dev/null 2>&1; then
+    TMP=$(mktemp)
+    jq '. + {v2_token_budgets: false}' "$PLANNING_DIR/config.json" > "$TMP" && mv "$TMP" "$PLANNING_DIR/config.json"
+  fi
 fi
 
 # Clean compaction marker at session start (fresh-session guarantee, REQ-15)

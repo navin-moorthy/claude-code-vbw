@@ -49,7 +49,8 @@ create_test_config() {
   "v2_hard_gates": false,
   "v2_typed_protocol": false,
   "v2_role_isolation": false,
-  "v2_two_phase_completion": false
+  "v2_two_phase_completion": false,
+  "v2_token_budgets": false
 }
 CONF
 }

@@ -1,0 +1,12 @@
+{
+  "budgets": {
+    "scout": { "max_lines": 200, "description": "Low fixed budget per query batch" },
+    "lead": { "max_lines": 500, "description": "Medium budget, only on plan/replan events" },
+    "dev": { "max_lines": 800, "description": "Per-task budget tied to contract complexity" },
+    "qa": { "max_lines": 600, "description": "Tiered budget by risk class" },
+    "debugger": { "max_lines": 800, "description": "Same as dev for investigation" },
+    "architect": { "max_lines": 500, "description": "Same as lead for planning" }
+  },
+  "truncation_strategy": "tail",
+  "overage_action": "truncate_and_log"
+}
