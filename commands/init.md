@@ -360,6 +360,65 @@ After all corrections, display updated summary and proceed to Step 7 with correc
 
 Write the final confirmed/corrected data to `.vbw-planning/inference.json` for Step 7 consumption.
 
+### Step 7: Bootstrap execution
+
+Generate all project-defining files using confirmed data from Step 6 or discovery questions.
+
+Display: `◆ Generating project files...`
+
+**7a. Gather project data:**
+
+If SKIP_INFERENCE=true (greenfield or user chose "Define from scratch"):
+- Use AskUserQuestion to ask discovery questions:
+  1. "What is your project name?"
+  2. "Describe your project in one sentence."
+  3. "What are the key requirements? (one per line)"
+  4. "What phases do you envision? For each, give a name and goal. (e.g., 'Auth - User login and registration')"
+- Store answers for bootstrap script input
+
+If SKIP_INFERENCE=false (confirmed/corrected inference data):
+- Read `.vbw-planning/inference.json` to get confirmed project context
+- Extract: NAME from `name.value`, DESCRIPTION from `purpose.value`
+- If GSD_MIGRATION: read `.vbw-planning/gsd-inference.json` for milestone/phase context
+- Use AskUserQuestion to ask any remaining questions not covered by inference:
+  1. "What are the key requirements?" (pre-fill from inferred features if available)
+  2. "What phases do you envision?" (pre-fill from GSD recent_phases if available)
+
+**7b. Generate PROJECT.md:**
+- Run: `bash ${CLAUDE_PLUGIN_ROOT}/scripts/bootstrap/bootstrap-project.sh .vbw-planning/PROJECT.md "$NAME" "$DESCRIPTION"`
+- Display: `✓ PROJECT.md`
+
+**7c. Generate REQUIREMENTS.md:**
+- Create `.vbw-planning/discovery.json` with format: `{"answered": [...], "inferred": [...]}`
+  - `answered`: array of requirement strings from user answers
+  - `inferred`: array of `{"text": "...", "priority": "Must-have"}` from inference features
+- Run: `bash ${CLAUDE_PLUGIN_ROOT}/scripts/bootstrap/bootstrap-requirements.sh .vbw-planning/REQUIREMENTS.md .vbw-planning/discovery.json`
+- Display: `✓ REQUIREMENTS.md`
+
+**7d. Generate ROADMAP.md:**
+- Create `.vbw-planning/phases.json` with format: `[{"name": "...", "goal": "...", "requirements": [...], "success_criteria": [...]}]`
+  - Build from user-provided phase names/goals
+  - Link requirements from discovery data
+  - Generate success criteria from phase goals
+- Run: `bash ${CLAUDE_PLUGIN_ROOT}/scripts/bootstrap/bootstrap-roadmap.sh .vbw-planning/ROADMAP.md "$NAME" .vbw-planning/phases.json`
+- Display: `✓ ROADMAP.md`
+
+**7e. Generate STATE.md:**
+- Determine MILESTONE_NAME: use NAME or first milestone from GSD inference
+- Determine PHASE_COUNT from phases.json length
+- Run: `bash ${CLAUDE_PLUGIN_ROOT}/scripts/bootstrap/bootstrap-state.sh .vbw-planning/STATE.md "$NAME" "$MILESTONE_NAME" "$PHASE_COUNT"`
+- Display: `✓ STATE.md`
+
+**7f. Generate/update CLAUDE.md:**
+- If root CLAUDE.md exists: pass it as EXISTING_PATH to preserve non-VBW content
+- Run: `bash ${CLAUDE_PLUGIN_ROOT}/scripts/bootstrap/bootstrap-claude.sh CLAUDE.md "$NAME" "$DESCRIPTION" "CLAUDE.md"`
+  - If CLAUDE.md does not exist yet, omit the last argument
+- Display: `✓ CLAUDE.md`
+
+**7g. Cleanup temporary files:**
+- Remove `.vbw-planning/discovery.json`, `.vbw-planning/phases.json`, `.vbw-planning/inference.json`, `.vbw-planning/gsd-inference.json` (if they exist)
+- These are intermediate build artifacts, not project state
+
 ## Output Format
 
 Follow @${CLAUDE_PLUGIN_ROOT}/references/vbw-brand-essentials.md — Phase Banner (double-line box), File Checklist (✓), ○ for pending, Next Up Block, no ANSI color codes.
