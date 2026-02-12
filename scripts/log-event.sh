@@ -3,9 +3,17 @@ set -u
 
 # log-event.sh <event-type> <phase> [plan] [key=value ...]
 # Appends a structured event to .vbw-planning/.events/event-log.jsonl
-# Event types: phase_start, phase_end, plan_start, plan_end,
-#              agent_spawn, agent_shutdown, error, checkpoint
 # Exit 0 always — event logging must never block execution.
+#
+# V1 event types: phase_start, phase_end, plan_start, plan_end,
+#                 agent_spawn, agent_shutdown, error, checkpoint
+# V2 event types: phase_planned, task_created, task_claimed, task_started,
+#                 artifact_written, gate_passed, gate_failed,
+#                 task_completed_candidate, task_completed_confirmed,
+#                 task_blocked, task_reassigned
+#
+# When v2_typed_protocol=true, unknown event types are rejected
+# (warning to stderr, event not written). When false, all types accepted.
 
 if [ $# -lt 2 ]; then
   exit 0
@@ -23,6 +31,28 @@ fi
 EVENT_TYPE="$1"
 PHASE="$2"
 shift 2
+
+# Optional event type validation (REQ-02)
+if [ -f "$CONFIG_PATH" ] && command -v jq &>/dev/null; then
+  TYPED=$(jq -r '.v2_typed_protocol // false' "$CONFIG_PATH" 2>/dev/null || echo "false")
+  if [ "$TYPED" = "true" ]; then
+    case "$EVENT_TYPE" in
+      # V1 types
+      phase_start|phase_end|plan_start|plan_end|agent_spawn|agent_shutdown|error|checkpoint)
+        ;;
+      # V2 types
+      phase_planned|task_created|task_claimed|task_started|artifact_written|gate_passed|gate_failed|task_completed_candidate|task_completed_confirmed|task_blocked|task_reassigned)
+        ;;
+      # Additional metric/internal types
+      token_overage|file_conflict|smart_route|contract_revision|cache_hit|task_completion_rejected|snapshot_restored|state_recovered)
+        ;;
+      *)
+        echo "[log-event] WARNING: unknown event type '${EVENT_TYPE}' rejected by v2_typed_protocol" >&2
+        exit 0
+        ;;
+    esac
+  fi
+fi
 
 PLAN=""
 DATA_PAIRS=""
