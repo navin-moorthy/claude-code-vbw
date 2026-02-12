@@ -76,6 +76,32 @@ Environment setup complete:
   {✓ or ○} Statusline {add "(restart to activate)" if newly installed}
 ```
 
+### Step 0.5: GSD import (conditional)
+
+**Timing rationale:** Detection happens after environment setup (Step 0) but before scaffold (Step 1) to ensure:
+- settings.json writes complete before any directory operations
+- .vbw-planning/gsd-archive/ is created before scaffold creates .vbw-planning/
+- User sees GSD detection early in the init flow
+- Index generation (if implemented) can run after scaffold completes
+
+**Detection:** Check for .planning/ directory: `[ -d .planning ]`
+
+- **NOT found:** skip silently to Step 1 (no display output)
+- **Found:** proceed with import flow:
+  1. Display: "◆ GSD project detected"
+  2. AskUserQuestion: "GSD project detected. Import work history?\n\nThis will copy .planning/ to .vbw-planning/gsd-archive/ for reference.\nYour original .planning/ directory will remain untouched."
+     - Options: "Import (Recommended)" / "Skip"
+  3. If user declines:
+     - Display: "○ GSD import skipped"
+     - Proceed to Step 1
+  4. If user approves:
+     - Create directory: `mkdir -p .vbw-planning/gsd-archive`
+     - Copy contents: `cp -r .planning/* .vbw-planning/gsd-archive/`
+     - Display: "✓ GSD project archived to .vbw-planning/gsd-archive/"
+     - Display: "○ Index generation will run after scaffold completes"
+     - Set GSD_IMPORTED=true flag for later steps
+     - Proceed to Step 1
+
 ### Step 1: Scaffold directory
 
 Read each template from `${CLAUDE_PLUGIN_ROOT}/templates/` and write to .vbw-planning/:
