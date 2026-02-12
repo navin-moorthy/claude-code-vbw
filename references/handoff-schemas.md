@@ -1,94 +1,224 @@
-# VBW Structured Handoff Schemas
+# VBW Typed Communication Protocol
 
-JSON-structured SendMessage schemas with `type` discriminator. Receivers: `JSON.parse` content; fall back to plain markdown on parse failure.
+V2 inter-agent messages use strict JSON schemas. Every message includes a mandatory envelope. Machine-readable definitions at `config/schemas/message-schemas.json`.
 
-## `scout_findings` (Scout -> Map Lead)
+## Envelope (mandatory on all messages)
+
+```json
+{
+  "id": "uuid-v4",
+  "type": "scout_findings|plan_contract|execution_update|blocker_report|qa_verdict|approval_request|approval_response",
+  "phase": 1,
+  "task": "1-1-T3",
+  "author_role": "lead|dev|qa|scout|debugger|architect",
+  "timestamp": "2026-02-12T10:00:00Z",
+  "schema_version": "2.0",
+  "payload": {},
+  "confidence": "high|medium|low"
+}
+```
+
+## Role Authorization Matrix
+
+| Message Type | Allowed Senders | Typical Receivers |
+|---|---|---|
+| scout_findings | scout | lead, architect |
+| plan_contract | lead, architect | dev, qa, scout |
+| execution_update | dev | lead |
+| blocker_report | dev, debugger | lead |
+| qa_verdict | qa | lead |
+| approval_request | dev, lead | lead, architect |
+| approval_response | lead, architect | dev, lead |
+
+Unauthorized sender -> message rejected (v2_typed_protocol=true) or logged (false).
+
+## `scout_findings` (Scout -> Lead/Architect)
 
 Research findings from a Scout investigating a specific domain.
 
 ```json
 {
+  "id": "abc-123",
   "type": "scout_findings",
-  "domain": "tech-stack | architecture | quality | concerns",
-  "documents": [
-    { "name": "STACK.md", "content": "## Tech Stack\n..." }
-  ],
-  "cross_cutting": [
-    { "target_domain": "architecture", "finding": "...", "relevance": "high | medium | low" }
-  ],
-  "confidence": "high | medium | low",
-  "confidence_rationale": "Brief justification"
+  "phase": 1,
+  "task": "1-1-T1",
+  "author_role": "scout",
+  "timestamp": "2026-02-12T10:00:00Z",
+  "schema_version": "2.0",
+  "confidence": "high",
+  "payload": {
+    "domain": "tech-stack|architecture|quality|concerns",
+    "documents": [
+      {"name": "STACK.md", "content": "## Tech Stack\n..."}
+    ],
+    "cross_cutting": [
+      {"target_domain": "architecture", "finding": "...", "relevance": "high|medium|low"}
+    ],
+    "confidence_rationale": "Brief justification"
+  }
 }
 ```
 
-## `dev_progress` (Dev -> Execute Lead)
+## `plan_contract` (Lead/Architect -> Dev/QA/Scout)
 
-Status update after completing a task.
+Issued plan contract defining task scope and constraints.
 
 ```json
 {
-  "type": "dev_progress",
-  "task": "03-01/task-3",
-  "plan_id": "03-01",
-  "commit": "abc1234",
-  "status": "complete | partial | failed",
-  "concerns": ["Interface changed — downstream plans may need update"]
+  "id": "contract-456",
+  "type": "plan_contract",
+  "phase": 1,
+  "task": "1-1-T1",
+  "author_role": "lead",
+  "timestamp": "2026-02-12T10:00:00Z",
+  "schema_version": "2.0",
+  "confidence": "high",
+  "payload": {
+    "plan_id": "phase-1-plan-1",
+    "phase_id": "phase-1",
+    "objective": "Implement feature X",
+    "tasks": ["1-1-T1", "1-1-T2"],
+    "allowed_paths": ["src/feature.js", "tests/feature.test.js"],
+    "must_haves": ["Feature passes tests", "No regressions"],
+    "forbidden_paths": [".env", "secrets/"],
+    "depends_on": [],
+    "verification_checks": ["npm test"],
+    "token_budget": 50000
+  }
 }
 ```
 
-## `dev_blocker` (Dev -> Execute Lead)
+## `execution_update` (Dev -> Lead)
 
-Escalation when blocked and cannot proceed.
+Task progress or completion update from Dev.
 
 ```json
 {
-  "type": "dev_blocker",
-  "task": "03-02/task-1",
-  "plan_id": "03-02",
-  "blocker": "Dependency module from plan 03-01 not yet committed",
-  "needs": "03-01 to complete first",
-  "attempted": ["Checked git log for 03-01 commits — none found"]
+  "id": "update-789",
+  "type": "execution_update",
+  "phase": 1,
+  "task": "1-1-T3",
+  "author_role": "dev",
+  "timestamp": "2026-02-12T10:05:00Z",
+  "schema_version": "2.0",
+  "confidence": "high",
+  "payload": {
+    "plan_id": "1-1",
+    "task_id": "1-1-T3",
+    "status": "complete|partial|failed",
+    "commit": "abc1234",
+    "files_modified": ["src/feature.js"],
+    "concerns": ["Interface changed — downstream plans may need update"],
+    "evidence": "All tests pass"
+  }
 }
 ```
 
-## `qa_result` (QA -> Lead)
+## `blocker_report` (Dev/Debugger -> Lead)
+
+Escalation when agent is blocked and cannot proceed.
+
+```json
+{
+  "id": "block-012",
+  "type": "blocker_report",
+  "phase": 1,
+  "task": "1-2-T1",
+  "author_role": "dev",
+  "timestamp": "2026-02-12T10:10:00Z",
+  "schema_version": "2.0",
+  "confidence": "medium",
+  "payload": {
+    "plan_id": "1-2",
+    "task_id": "1-2-T1",
+    "blocker": "Dependency module from plan 1-1 not yet committed",
+    "needs": "Plan 1-1 to complete first",
+    "attempted": ["Checked git log for 1-1 commits — none found"],
+    "severity": "blocking|degraded|informational"
+  }
+}
+```
+
+## `qa_verdict` (QA -> Lead)
 
 Structured verification results.
 
 ```json
 {
-  "type": "qa_result",
-  "tier": "quick | standard | deep",
-  "result": "PASS | FAIL | PARTIAL",
-  "checks": { "passed": 18, "failed": 2, "total": 20 },
-  "failures": [
-    {
-      "check": "CONVENTIONS.md link integrity",
-      "expected": "All cross-references resolve",
-      "actual": "references/missing-file.md not found",
-      "evidence": "grep output showing broken link at line 42"
-    }
-  ],
-  "body": "## Must-Have Checks\n| # | Truth | Status | Evidence |\n..."
+  "id": "qa-345",
+  "type": "qa_verdict",
+  "phase": 1,
+  "task": "1-1-T1",
+  "author_role": "qa",
+  "timestamp": "2026-02-12T10:15:00Z",
+  "schema_version": "2.0",
+  "confidence": "high",
+  "payload": {
+    "tier": "quick|standard|deep",
+    "result": "PASS|FAIL|PARTIAL",
+    "checks": {"passed": 18, "failed": 2, "total": 20},
+    "failures": [
+      {"check": "Link integrity", "expected": "All resolve", "actual": "broken ref", "evidence": "line 42"}
+    ],
+    "body": "## Must-Have Checks\n...",
+    "recommendations": ["Fix broken cross-reference before shipping"]
+  }
 }
 ```
 
-## `debugger_report` (Debugger -> Debug Lead)
+## `approval_request` (Dev/Lead -> Lead/Architect)
 
-Investigation findings from competing hypotheses mode.
+Request for approval on plan, scope change, or override.
 
 ```json
 {
-  "type": "debugger_report",
-  "hypothesis": "Race condition in session middleware causes intermittent 401s",
-  "evidence_for": [
-    "Mutex not held during token refresh (src/middleware/auth.ts:45)",
-    "Reproduction shows 401s only under concurrent requests"
-  ],
-  "evidence_against": [
-    "Token TTL is 30min — unlikely to expire mid-request in normal flow"
-  ],
-  "confidence": "high | medium | low",
-  "recommended_fix": "Add mutex lock around token refresh, or 'Insufficient evidence' if low confidence"
+  "id": "approve-678",
+  "type": "approval_request",
+  "phase": 1,
+  "task": "1-1-T1",
+  "author_role": "dev",
+  "timestamp": "2026-02-12T10:20:00Z",
+  "schema_version": "2.0",
+  "confidence": "medium",
+  "payload": {
+    "subject": "Scope expansion needed for Task 3",
+    "request_type": "scope_change|plan_approval|gate_override",
+    "evidence": "Task requires modifying auth module not in allowed_paths",
+    "options": ["Expand contract", "Split into new task"],
+    "deadline": "2026-02-12T12:00:00Z"
+  }
 }
 ```
+
+## `approval_response` (Lead/Architect -> Dev/Lead)
+
+Response to an approval request.
+
+```json
+{
+  "id": "response-901",
+  "type": "approval_response",
+  "phase": 1,
+  "task": "1-1-T1",
+  "author_role": "lead",
+  "timestamp": "2026-02-12T10:25:00Z",
+  "schema_version": "2.0",
+  "confidence": "high",
+  "payload": {
+    "request_id": "approve-678",
+    "approved": true,
+    "reason": "Auth module access justified by cross-cutting dependency",
+    "conditions": ["Must not change existing API surface"],
+    "modifications": []
+  }
+}
+```
+
+## Backward Compatibility
+
+Old-format messages (without full envelope) are accepted when `v2_typed_protocol=false`. The validate-message.sh script parses the `type` field to determine schema and validates accordingly.
+
+When receiving messages, agents should:
+1. Try to parse as V2 typed message (full envelope)
+2. Fall back to V1 format (simple type + payload)
+3. Fall back to plain markdown on parse failure
