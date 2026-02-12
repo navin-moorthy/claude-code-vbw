@@ -41,7 +41,10 @@ create_test_config() {
   "v3_smart_routing": false,
   "v3_event_log": false,
   "v3_schema_validation": false,
-  "v3_snapshot_resume": false
+  "v3_snapshot_resume": false,
+  "v3_lease_locks": false,
+  "v3_event_recovery": false,
+  "v3_monorepo_routing": false
 }
 CONF
 }
