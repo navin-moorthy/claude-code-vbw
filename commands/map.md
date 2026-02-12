@@ -16,7 +16,7 @@ META.md:
 ```
 !`cat .vbw-planning/codebase/META.md 2>/dev/null || echo "No META.md found"`
 ```
-Project files: `!`ls package.json pyproject.toml Cargo.toml go.mod *.sln Gemfile build.gradle pom.xml 2>/dev/null || echo "No standard project files found"``
+Project files: `!`ls package.json pyproject.toml Cargo.toml go.mod Gemfile build.gradle pom.xml 2>/dev/null || echo "No standard project files found"``
 Git HEAD: `!`git rev-parse HEAD 2>/dev/null || echo "no-git"``
 Agent Teams: `!`echo "${CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS:-0}"``
 
