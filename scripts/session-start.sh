@@ -13,30 +13,30 @@ CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 
 # Auto-migrate config if .vbw-planning exists
 if [ -d "$PLANNING_DIR" ] && [ -f "$PLANNING_DIR/config.json" ]; then
-  if ! jq -e '.model_profile' "$PLANNING_DIR/config.json" >/dev/null 2>&1; then
+  if ! jq -e 'has("model_profile")' "$PLANNING_DIR/config.json" >/dev/null 2>&1; then
     TMP=$(mktemp)
     jq '. + {model_profile: "quality", model_overrides: {}}' "$PLANNING_DIR/config.json" > "$TMP" && mv "$TMP" "$PLANNING_DIR/config.json"
   fi
   # V2 enforcement flags migration
-  if ! jq -e '.v2_hard_contracts' "$PLANNING_DIR/config.json" >/dev/null 2>&1; then
+  if ! jq -e 'has("v2_hard_contracts")' "$PLANNING_DIR/config.json" >/dev/null 2>&1; then
     TMP=$(mktemp)
     jq '. + {v2_hard_contracts: false, v2_hard_gates: false, v2_typed_protocol: false}' "$PLANNING_DIR/config.json" > "$TMP" && mv "$TMP" "$PLANNING_DIR/config.json"
-  elif ! jq -e '.v2_typed_protocol' "$PLANNING_DIR/config.json" >/dev/null 2>&1; then
+  elif ! jq -e 'has("v2_typed_protocol")' "$PLANNING_DIR/config.json" >/dev/null 2>&1; then
     TMP=$(mktemp)
     jq '. + {v2_typed_protocol: false}' "$PLANNING_DIR/config.json" > "$TMP" && mv "$TMP" "$PLANNING_DIR/config.json"
   fi
   # V2 role isolation flag migration
-  if ! jq -e '.v2_role_isolation' "$PLANNING_DIR/config.json" >/dev/null 2>&1; then
+  if ! jq -e 'has("v2_role_isolation")' "$PLANNING_DIR/config.json" >/dev/null 2>&1; then
     TMP=$(mktemp)
     jq '. + {v2_role_isolation: false}' "$PLANNING_DIR/config.json" > "$TMP" && mv "$TMP" "$PLANNING_DIR/config.json"
   fi
   # V2 two-phase completion flag migration
-  if ! jq -e '.v2_two_phase_completion' "$PLANNING_DIR/config.json" >/dev/null 2>&1; then
+  if ! jq -e 'has("v2_two_phase_completion")' "$PLANNING_DIR/config.json" >/dev/null 2>&1; then
     TMP=$(mktemp)
     jq '. + {v2_two_phase_completion: false}' "$PLANNING_DIR/config.json" > "$TMP" && mv "$TMP" "$PLANNING_DIR/config.json"
   fi
   # V2 token budgets flag migration
-  if ! jq -e '.v2_token_budgets' "$PLANNING_DIR/config.json" >/dev/null 2>&1; then
+  if ! jq -e 'has("v2_token_budgets")' "$PLANNING_DIR/config.json" >/dev/null 2>&1; then
     TMP=$(mktemp)
     jq '. + {v2_token_budgets: false}' "$PLANNING_DIR/config.json" > "$TMP" && mv "$TMP" "$PLANNING_DIR/config.json"
   fi
