@@ -58,6 +58,6 @@ teardown() {
   [ "$output" = "opus" ]
 
   # Verify cache file exists
-  MTIME=$(stat -f %m "$TEST_TEMP_DIR/.vbw-planning/config.json" 2>/dev/null || stat -c %Y "$TEST_TEMP_DIR/.vbw-planning/config.json" 2>/dev/null)
+  MTIME=$(stat -c %Y "$TEST_TEMP_DIR/.vbw-planning/config.json" 2>/dev/null || stat -f %m "$TEST_TEMP_DIR/.vbw-planning/config.json" 2>/dev/null)
   [ -f "/tmp/vbw-model-dev-${MTIME}" ]
 }

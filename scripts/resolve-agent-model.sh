@@ -31,7 +31,7 @@ PROFILES_PATH="$3"
 
 # Session-level cache: avoid repeated jq calls for same agent + config
 if [ -f "$CONFIG_PATH" ]; then
-  CONFIG_MTIME=$(stat -f %m "$CONFIG_PATH" 2>/dev/null || stat -c %Y "$CONFIG_PATH" 2>/dev/null || echo "0")
+  CONFIG_MTIME=$(stat -c %Y "$CONFIG_PATH" 2>/dev/null || stat -f %m "$CONFIG_PATH" 2>/dev/null || echo "0")
   CACHE_FILE="/tmp/vbw-model-${AGENT}-${CONFIG_MTIME}"
   if [ -f "$CACHE_FILE" ]; then
     cat "$CACHE_FILE"

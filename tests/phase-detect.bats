@@ -7,6 +7,8 @@ setup() {
   create_test_config
   cd "$TEST_TEMP_DIR"
   git init --quiet
+  git config user.email "test@test.com"
+  git config user.name "Test"
   touch dummy && git add dummy && git commit -m "init" --quiet
 }
 
