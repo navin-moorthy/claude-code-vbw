@@ -117,8 +117,22 @@ record_step() {
 
 emit_result() {
   local exit_code="${1:-0}"
-  jq -n --arg action "$ACTION" --argjson steps "$STEPS_JSON" \
-    '{"action": $action, "steps": $steps}' 2>/dev/null || echo "{\"action\":\"${ACTION}\",\"steps\":[]}"
+  local extra_fields=""
+  # Include context_path and contract_path in output when available
+  if [ -n "$CONTEXT_PATH_OUT" ] || [ -n "$CONTRACT_PATH_OUT" ]; then
+    local ctx_json="${CONTEXT_PATH_OUT:-null}"
+    local ctr_json="${CONTRACT_PATH_OUT:-null}"
+    [ "$ctx_json" != "null" ] && ctx_json="\"$ctx_json\""
+    [ "$ctr_json" != "null" ] && ctr_json="\"$ctr_json\""
+    jq -n --arg action "$ACTION" --argjson steps "$STEPS_JSON" \
+      --argjson ctx "$ctx_json" --argjson ctr "$ctr_json" \
+      '{"action": $action, "steps": $steps, "context_path": $ctx, "contract_path": $ctr}' 2>/dev/null \
+      || echo "{\"action\":\"${ACTION}\",\"steps\":[]}"
+  else
+    jq -n --arg action "$ACTION" --argjson steps "$STEPS_JSON" \
+      '{"action": $action, "steps": $steps}' 2>/dev/null \
+      || echo "{\"action\":\"${ACTION}\",\"steps\":[]}"
+  fi
   exit "$exit_code"
 }
 
@@ -327,6 +341,7 @@ case "$ACTION" in
   full)
     step_contract
     step_context
+    step_token_budget
     emit_result 0
     ;;
 
