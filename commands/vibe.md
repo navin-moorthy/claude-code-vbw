@@ -326,7 +326,19 @@ If `planning_dir_exists=false`: display "Run /vbw:init first to set up your proj
 **Steps:**
 1. Load phase goal, requirements, success criteria, dependencies from ROADMAP.md.
 
-2. **Phase type detection:** Identify what KIND of thing the phase builds from ROADMAP.md phase goal and requirements text.
+2. **Phase boundary detection:** Extract ALL phases from ROADMAP.md for scope creep detection.
+
+   Read `.vbw-planning/ROADMAP.md` and parse all phases:
+   a. Extract phase number, name, goal, and requirements text for each phase
+   b. Store as phase boundary map: array of `{ phase: N, name: "...", goal: "...", requirements: "..." }`
+   c. Identify current phase number (from user input or auto-detection from Step 1)
+   d. Store current phase and other phases' boundaries separately
+   e. Current phase boundary = goal + requirements for current phase (used to check if mentions are IN scope)
+   f. Other phases' boundaries = goal + requirements for all non-current phases (used to detect OUT of scope mentions)
+
+   This map enables scope creep detection in Step 5 by comparing user mentions against other phases' boundaries.
+
+3. **Phase type detection:** Identify what KIND of thing the phase builds from ROADMAP.md phase goal and requirements text.
 
    Define 5 phase type keyword patterns (case-insensitive matching):
    - **UI**: design, interface, layout, frontend, screens, components, responsive, page, view, form, dashboard, widget, navigation, menu, modal, button
@@ -342,7 +354,7 @@ If `planning_dir_exists=false`: display "Run /vbw:init first to set up your proj
    d. Identify detected types: score >= 2 (minimum 2 keyword matches required to prevent false positives)
    e. Store detected types for next step
 
-3. **Mixed-type handling:** Determine which question template to use.
+4. **Mixed-type handling:** Determine which question template to use.
    - **If 0 types detected** (all scores < 2): use generic fallback questions
    - **If 1 type detected** (only one type scored >= 2): use that type's questions, record as auto-detected
    - **If 2+ types detected** (multiple types scored >= 2): present AskUserQuestion:
@@ -351,7 +363,7 @@ If `planning_dir_exists=false`: display "Run /vbw:init first to set up your proj
      User's selection determines question template, record as user-chosen
    - Store selected phase type (and source: auto-detected or user-chosen) for question generation and discovery.json recording
 
-4. **Domain-typed question generation:** Generate 3-5 questions using the selected phase type template (from step 3).
+5. **Domain-typed question generation:** Generate 3-5 questions using the selected phase type template (from step 4).
 
    ## Domain-typed question templates
 
@@ -398,9 +410,9 @@ If `planning_dir_exists=false`: display "Run /vbw:init first to set up your proj
    Present selected questions via AskUserQuestion following REQ-C2 constraint (2-4 options per question).
    Follow existing AskUserQuestion patterns: single-select for scenarios, multiSelect for checklists.
 
-5. Write `.vbw-planning/phases/{phase-dir}/{phase}-CONTEXT.md` with sections: User Vision, Essential Features, Technical Preferences, Boundaries, Acceptance Criteria, Decisions Made, Deferred Ideas (append-only section for scope creep captures).
+6. Write `.vbw-planning/phases/{phase-dir}/{phase}-CONTEXT.md` with sections: User Vision, Essential Features, Technical Preferences, Boundaries, Acceptance Criteria, Decisions Made, Deferred Ideas (append-only section for scope creep captures).
 
-6. Update `.vbw-planning/discovery.json`: append each question+answer to `answered[]` with extended schema including phase type metadata:
+7. Update `.vbw-planning/discovery.json`: append each question+answer to `answered[]` with extended schema including phase type metadata:
    ```json
    {
      "question": "How should the screens be organized?",
@@ -415,7 +427,7 @@ If `planning_dir_exists=false`: display "Run /vbw:init first to set up your proj
    Fields: question, answer, category, phase (zero-padded phase number), date, phase_type (UI/API/CLI/Data/Integration/generic), phase_type_source (auto-detected or user-chosen).
    Extract inferences to `inferred[]`, include phase type context if relevant.
 
-7. Show summary, ask for corrections. Run `bash ${CLAUDE_PLUGIN_ROOT}/scripts/suggest-next.sh vibe`.
+8. Show summary, ask for corrections. Run `bash ${CLAUDE_PLUGIN_ROOT}/scripts/suggest-next.sh vibe`.
 
 ### Mode: Assumptions
 
