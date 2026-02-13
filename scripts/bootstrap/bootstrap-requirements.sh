@@ -38,9 +38,10 @@ COMPETITORS=""
 if [ -n "$RESEARCH_FILE" ] && [ -f "$RESEARCH_FILE" ]; then
   RESEARCH_AVAILABLE=true
   # Extract sections using awk (bash-only, no jq needed for markdown)
-  TABLE_STAKES=$(awk '/## Table Stakes/,/^## / {if (!/^## / || /## Table Stakes/) print}' "$RESEARCH_FILE" | tail -n +2 | head -n -1)
-  PITFALLS=$(awk '/## Common Pitfalls/,/^## / {if (!/^## / || /## Common Pitfalls/) print}' "$RESEARCH_FILE" | tail -n +2 | head -n -1)
-  PATTERNS=$(awk '/## Architecture Patterns/,/^## / {if (!/^## / || /## Architecture Patterns/) print}' "$RESEARCH_FILE" | tail -n +2 | head -n -1)
+  # Use sed to remove last line instead of head -n -1 (macOS compatibility)
+  TABLE_STAKES=$(awk '/## Table Stakes/,/^## / {if (!/^## / || /## Table Stakes/) print}' "$RESEARCH_FILE" | tail -n +2 | sed '$d')
+  PITFALLS=$(awk '/## Common Pitfalls/,/^## / {if (!/^## / || /## Common Pitfalls/) print}' "$RESEARCH_FILE" | tail -n +2 | sed '$d')
+  PATTERNS=$(awk '/## Architecture Patterns/,/^## / {if (!/^## / || /## Architecture Patterns/) print}' "$RESEARCH_FILE" | tail -n +2 | sed '$d')
   COMPETITORS=$(awk '/## Competitor Landscape/,/^$/ {if (!/^## /) print}' "$RESEARCH_FILE" | tail -n +2)
 fi
 
