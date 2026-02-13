@@ -70,6 +70,26 @@ if [ -f "$PROJECT_DIR/go.mod" ]; then
   GO_MOD=$(cat "$PROJECT_DIR/go.mod" 2>/dev/null)
 fi
 
+COMPOSER_JSON=""
+if [ -f "$PROJECT_DIR/composer.json" ]; then
+  COMPOSER_JSON=$(cat "$PROJECT_DIR/composer.json" 2>/dev/null)
+fi
+
+MIX_EXS=""
+if [ -f "$PROJECT_DIR/mix.exs" ]; then
+  MIX_EXS=$(cat "$PROJECT_DIR/mix.exs" 2>/dev/null)
+fi
+
+POM_XML=""
+if [ -f "$PROJECT_DIR/pom.xml" ]; then
+  POM_XML=$(cat "$PROJECT_DIR/pom.xml" 2>/dev/null)
+fi
+
+BUILD_GRADLE=""
+if [ -f "$PROJECT_DIR/build.gradle" ]; then
+  BUILD_GRADLE=$(cat "$PROJECT_DIR/build.gradle" 2>/dev/null)
+fi
+
 # --- Check a single detect pattern ---
 # Returns 0 (true) if pattern matches, 1 (false) if not.
 check_pattern() {
@@ -82,13 +102,17 @@ check_pattern() {
     dep=$(echo "$pattern" | cut -d: -f2-)
 
     case "$file" in
-      package.json)   content="$PKG_JSON" ;;
+      package.json)    content="$PKG_JSON" ;;
       requirements.txt) content="$REQUIREMENTS_TXT" ;;
-      pyproject.toml) content="$PYPROJECT_TOML" ;;
-      Gemfile)        content="$GEMFILE" ;;
-      Cargo.toml)     content="$CARGO_TOML" ;;
-      go.mod)         content="$GO_MOD" ;;
-      *)              content="" ;;
+      pyproject.toml)  content="$PYPROJECT_TOML" ;;
+      Gemfile)         content="$GEMFILE" ;;
+      Cargo.toml)      content="$CARGO_TOML" ;;
+      go.mod)          content="$GO_MOD" ;;
+      composer.json)   content="$COMPOSER_JSON" ;;
+      mix.exs)         content="$MIX_EXS" ;;
+      pom.xml)         content="$POM_XML" ;;
+      build.gradle)    content="$BUILD_GRADLE" ;;
+      *)               content="" ;;
     esac
 
     if [ -n "$content" ] && echo "$content" | grep -qF "\"$dep\""; then

@@ -1,6 +1,38 @@
 {
   "_description": "Maps detected project stack to recommended Claude Code skills",
   "_usage": "Used by /vbw:init and /vbw:vibe to suggest relevant skills",
+  "languages": {
+    "python": {
+      "detect": ["pyproject.toml", "requirements.txt", "setup.py"],
+      "skills": ["python-skill"],
+      "description": "Python project"
+    },
+    "rust": {
+      "detect": ["Cargo.toml"],
+      "skills": ["rust-skill"],
+      "description": "Rust project"
+    },
+    "go": {
+      "detect": ["go.mod"],
+      "skills": ["go-skill"],
+      "description": "Go project"
+    },
+    "elixir": {
+      "detect": ["mix.exs"],
+      "skills": ["elixir-skill"],
+      "description": "Elixir project"
+    },
+    "java": {
+      "detect": ["pom.xml", "build.gradle"],
+      "skills": ["java-skill"],
+      "description": "Java project"
+    },
+    "dotnet": {
+      "detect": ["*.csproj", "*.sln"],
+      "skills": ["dotnet-skill"],
+      "description": ".NET project"
+    }
+  },
   "frameworks": {
     "next": {
       "detect": ["next.config.js", "next.config.mjs", "next.config.ts"],
@@ -66,6 +98,21 @@
       "detect": ["nuxt.config.ts", "nuxt.config.js", "package.json:nuxt"],
       "skills": ["nuxt-skill"],
       "description": "Nuxt.js framework"
+    },
+    "rails": {
+      "detect": ["config/routes.rb", "Gemfile"],
+      "skills": ["rails-skill"],
+      "description": "Ruby on Rails framework"
+    },
+    "laravel": {
+      "detect": ["artisan", "composer.json:laravel"],
+      "skills": ["laravel-skill"],
+      "description": "Laravel PHP framework"
+    },
+    "spring": {
+      "detect": ["pom.xml:spring-boot", "build.gradle:spring-boot"],
+      "skills": ["spring-skill"],
+      "description": "Spring Boot Java framework"
     }
   },
   "testing": {
