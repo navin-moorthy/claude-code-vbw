@@ -76,8 +76,30 @@ INFERRED_COUNT=$(jq '.inferred | length' "$DISCOVERY_JSON")
       REQ_TEXT=$(jq -r ".inferred[$i].text // .inferred[$i]" "$DISCOVERY_JSON")
       REQ_PRIORITY=$(jq -r ".inferred[$i].priority // \"Must-have\"" "$DISCOVERY_JSON")
 
-      # Integrate research findings if available
-      if [ "$RESEARCH_AVAILABLE" = true ]; then
+      # Extract tier if present, default to "differentiators" for backward compat
+      REQ_TIER=$(jq -r ".inferred[$i].tier // \"differentiators\"" "$DISCOVERY_JSON")
+
+      # Map tier to priority and annotation
+      case "$REQ_TIER" in
+        table_stakes)
+          REQ_PRIORITY="Must-have"
+          REQ_ANNOTATION=" (domain standard)"
+          ;;
+        differentiators)
+          REQ_PRIORITY="Must-have"
+          REQ_ANNOTATION=" (competitive advantage)"
+          ;;
+        anti_features)
+          # Skip anti-features — they go to Out of Scope section
+          continue
+          ;;
+        *)
+          REQ_ANNOTATION=""
+          ;;
+      esac
+
+      # Integrate research findings if available (legacy annotation logic)
+      if [ "$RESEARCH_AVAILABLE" = true ] && [ -z "$REQ_ANNOTATION" ]; then
         ANNOTATION=""
 
         # Check if requirement relates to table stakes (domain standard)
@@ -104,10 +126,10 @@ INFERRED_COUNT=$(jq '.inferred | length' "$DISCOVERY_JSON")
           fi
         fi
 
-        REQ_TEXT="${REQ_TEXT}${ANNOTATION}"
+        REQ_ANNOTATION="${ANNOTATION}"
       fi
 
-      echo "### ${REQ_ID}: ${REQ_TEXT}"
+      echo "### ${REQ_ID}: ${REQ_TEXT}${REQ_ANNOTATION}"
       echo "**${REQ_PRIORITY}**"
       echo ""
       REQ_NUM=$((REQ_NUM + 1))
@@ -117,9 +139,20 @@ INFERRED_COUNT=$(jq '.inferred | length' "$DISCOVERY_JSON")
     echo ""
   fi
 
+  # Generate Out of Scope section from anti-features
+  ANTI_FEATURES=$(jq -r '.inferred[] | select(.tier == "anti_features") | .text' "$DISCOVERY_JSON" 2>/dev/null || echo "")
   echo "## Out of Scope"
   echo ""
-  echo "_(To be defined)_"
+  if [ -n "$ANTI_FEATURES" ]; then
+    echo "$ANTI_FEATURES" | while IFS= read -r feature; do
+      if [ -n "$feature" ]; then
+        echo "- $feature (deliberately excluded)"
+      fi
+    done
+  else
+    echo "_(To be defined)_"
+  fi
+  echo ""
 } > "$OUTPUT_PATH"
 
 # Update discovery.json with research metadata
