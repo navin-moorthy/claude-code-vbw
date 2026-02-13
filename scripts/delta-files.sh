@@ -7,7 +7,6 @@ set -u
 # Outputs empty list on any error (graceful fallback).
 
 PHASE_DIR="${1:-.}"
-PLAN_PATH="${2:-}"
 
 # --- Strategy 1: git diff from last tag/merge-base ---
 if command -v git &>/dev/null && git rev-parse --is-inside-work-tree &>/dev/null 2>&1; then

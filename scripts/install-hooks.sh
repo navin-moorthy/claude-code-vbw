@@ -2,8 +2,6 @@
 set -euo pipefail
 # Install VBW-managed git hooks. Idempotent -- safe to run repeatedly.
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-
 # Determine the user's project root, NOT the plugin root.
 # When called from a hook, $PWD is the project. When called manually, use git.
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || ROOT=""

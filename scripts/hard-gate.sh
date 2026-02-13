@@ -37,7 +37,7 @@ if [ -f "$CONFIG_PATH" ] && command -v jq &>/dev/null; then
   AUTONOMY=$(jq -r '.autonomy // "unknown"' "$CONFIG_PATH" 2>/dev/null || echo "unknown")
 fi
 
-[ "$V2_HARD" != "true" ] && { echo '{"gate":"'$GATE_TYPE'","result":"skip","evidence":"v2_hard_gates=false","autonomy":"'$AUTONOMY'","ts":"'$(date -u +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null)'"}'; exit 0; }
+[ "$V2_HARD" != "true" ] && { echo '{"gate":"'"$GATE_TYPE"'","result":"skip","evidence":"v2_hard_gates=false","autonomy":"'"$AUTONOMY"'","ts":"'"$(date -u +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null)"'"}'; exit 0; }
 
 TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || echo "unknown")
 

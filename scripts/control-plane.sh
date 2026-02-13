@@ -117,7 +117,6 @@ record_step() {
 
 emit_result() {
   local exit_code="${1:-0}"
-  local extra_fields=""
   # Include context_path and contract_path in output when available
   if [ -n "$CONTEXT_PATH_OUT" ] || [ -n "$CONTRACT_PATH_OUT" ]; then
     local ctx_json="${CONTEXT_PATH_OUT:-null}"
