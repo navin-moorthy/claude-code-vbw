@@ -61,10 +61,17 @@ setup_compile_context() {
   cat > "$TEST_TEMP_DIR/.vbw-planning/ROADMAP.md" <<'ROADMAP'
 ## Phases
 
-### Phase 1: Test Phase
+## Phase 1: Test Phase
 **Goal:** Test the context compiler
 **Reqs:** REQ-01
 **Success:** All roles produce context files
+
+---
+
+## Phase 2: Future Phase
+**Goal:** Placeholder for parser termination
+**Reqs:** REQ-02
+**Success:** Parser correctly terminates section
 ROADMAP
 
   cat > "$TEST_TEMP_DIR/.vbw-planning/REQUIREMENTS.md" <<'REQS'
@@ -124,6 +131,42 @@ STATE
   [ "$status" -eq 0 ]
   grep -q "Architecture Context" ".vbw-planning/phases/01-test/.context-architect.md"
   grep -q "Full Requirements" ".vbw-planning/phases/01-test/.context-architect.md"
+}
+
+@test "compile-context.sh extracts goal from ROADMAP" {
+  setup_compile_context
+  cd "$TEST_TEMP_DIR"
+  run bash "$SCRIPTS_DIR/compile-context.sh" "01" "lead" ".vbw-planning/phases"
+  [ "$status" -eq 0 ]
+  # Goal should be actual text from ROADMAP, not "Not available"
+  grep -q "Test the context compiler" ".vbw-planning/phases/01-test/.context-lead.md"
+  # Success criteria should also be extracted
+  grep -q "All roles produce context files" ".vbw-planning/phases/01-test/.context-lead.md"
+}
+
+@test "compile-context.sh scout context includes conventions" {
+  setup_compile_context
+  cd "$TEST_TEMP_DIR"
+  cat > "$TEST_TEMP_DIR/.vbw-planning/conventions.json" <<'CONV'
+{
+  "conventions": [
+    {"tag": "style", "rule": "Commits follow type(scope): desc format"}
+  ]
+}
+CONV
+  run bash "$SCRIPTS_DIR/compile-context.sh" "01" "scout" ".vbw-planning/phases"
+  [ "$status" -eq 0 ]
+  grep -q "Conventions" ".vbw-planning/phases/01-test/.context-scout.md"
+  grep -q "Commits follow" ".vbw-planning/phases/01-test/.context-scout.md"
+}
+
+@test "compile-context.sh debugger context includes success criteria" {
+  setup_compile_context
+  cd "$TEST_TEMP_DIR"
+  run bash "$SCRIPTS_DIR/compile-context.sh" "01" "debugger" ".vbw-planning/phases"
+  [ "$status" -eq 0 ]
+  grep -q "Success Criteria" ".vbw-planning/phases/01-test/.context-debugger.md"
+  grep -q "All roles produce context files" ".vbw-planning/phases/01-test/.context-debugger.md"
 }
 
 # =============================================================================
