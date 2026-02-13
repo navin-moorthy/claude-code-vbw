@@ -155,7 +155,7 @@ If `planning_dir_exists=false`: display "Run /vbw:init first to set up your proj
           - If user chooses continue: loop to step 3a
           - If user chooses stop: proceed to synthesis (step 4)
        g. **Profile depth as minimum:** quick=1-2 minimum rounds, standard=3-5 minimum, thorough=5-8 minimum. User can continue beyond minimum via keep-exploring gate.
-    4. Synthesize answers into `.vbw-planning/discovery.json` with `answered[]` and `inferred[]` (questions=friendly, requirements=precise)
+    4. Synthesize answers into `.vbw-planning/discovery.json` with `answered[]` and `inferred[]`. Append each question+answer to `answered[]` with fields: question (friendly wording), answer (user's choice), category (scope/users/scale/data/edge_cases/integrations/priorities/boundaries), phase ('bootstrap'), round (current ROUND value), date (today). Extract inferences to `inferred[]` (questions=friendly, requirements=precise).
   - **Wording rules (all depths):** No jargon. Plain language. Concrete situations. Cause and effect. Assume user is not a developer.
   - **After discovery (all depths):** Call:
     ```
