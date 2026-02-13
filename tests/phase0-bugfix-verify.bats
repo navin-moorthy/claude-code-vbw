@@ -171,3 +171,89 @@ STATE
   run grep -E '(### Task|## Task)' "$SCRIPTS_DIR/task-verify.sh"
   [ "$status" -eq 1 ]  # grep returns 1 = no matches
 }
+
+# =============================================================================
+# Bug #16: route-monorepo.sh detects monorepo structures
+# =============================================================================
+
+# Helper: set up monorepo test structure
+setup_monorepo() {
+  cd "$TEST_TEMP_DIR"
+  mkdir -p .vbw-planning/phases/01-test
+  create_test_config
+  # Enable monorepo routing
+  local TMP
+  TMP=$(mktemp)
+  jq '.v3_monorepo_routing = true' .vbw-planning/config.json > "$TMP" && mv "$TMP" .vbw-planning/config.json
+}
+
+@test "route-monorepo.sh detects package roots" {
+  setup_monorepo
+  # Create monorepo structure
+  mkdir -p packages/core apps/web
+  echo '{}' > packages/core/package.json
+  echo '{}' > apps/web/package.json
+  echo '{}' > package.json
+
+  # Create PLAN.md referencing packages/core (- **Files:** must start at column 0 for grep)
+  cat > .vbw-planning/phases/01-test/01-01-PLAN.md <<'PLAN'
+---
+phase: 1
+plan: 1
+title: "Test Plan"
+---
+### Task 1
+- **Files:** `packages/core/src/index.ts`
+PLAN
+
+  run bash "$SCRIPTS_DIR/route-monorepo.sh" ".vbw-planning/phases/01-test"
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '. | length > 0' >/dev/null
+  echo "$output" | grep -q "packages/core"
+}
+
+@test "route-monorepo.sh returns empty for non-monorepo" {
+  setup_monorepo
+  # Only root package.json, no sub-packages
+  echo '{}' > package.json
+
+  cat > .vbw-planning/phases/01-test/01-01-PLAN.md <<'PLAN'
+---
+phase: 1
+plan: 1
+title: "Test Plan"
+---
+### Task 1
+- **Files:** `src/index.ts`
+PLAN
+
+  run bash "$SCRIPTS_DIR/route-monorepo.sh" ".vbw-planning/phases/01-test"
+  [ "$status" -eq 0 ]
+  [ "$output" = "[]" ]
+}
+
+@test "route-monorepo.sh detects multiple package markers" {
+  setup_monorepo
+  # Create mixed-language monorepo
+  mkdir -p packages/api packages/worker
+  echo 'module example.com/api' > packages/api/go.mod
+  echo '[package]' > packages/worker/Cargo.toml
+  echo '{}' > package.json
+
+  # PLAN.md referencing both packages (- **Files:** must start at column 0)
+  cat > .vbw-planning/phases/01-test/01-01-PLAN.md <<'PLAN'
+---
+phase: 1
+plan: 1
+title: "Test Plan"
+---
+### Task 1
+- **Files:** `packages/api/main.go`, `packages/worker/src/lib.rs`
+PLAN
+
+  run bash "$SCRIPTS_DIR/route-monorepo.sh" ".vbw-planning/phases/01-test"
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '. | length == 2' >/dev/null
+  echo "$output" | grep -q "packages/api"
+  echo "$output" | grep -q "packages/worker"
+}
