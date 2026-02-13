@@ -16,6 +16,12 @@ Defined: {date} | Core value: {one-liner}
 
 ## v1 Requirements
 
+<!-- Requirements are classified by tier:
+     - Table stakes: Features users expect in this domain (from research) → Must-have + (domain standard)
+     - Differentiators: Competitive advantages (user-identified) → Must-have + (competitive advantage)
+     - Anti-features: Deliberately excluded to prevent scope creep → Out of Scope
+-->
+
 ### {Category}
 - [ ] **REQ-01**: {requirement} {(optional: "domain standard" | "addresses common pitfall: X" | "typical approach: Y")}
 - [ ] **REQ-02**: {requirement}
@@ -27,6 +33,6 @@ Defined: {date} | Core value: {one-liner}
 - [ ] **REQ-XX**: {future-requirement}
 
 ## Out of Scope
-| Item | Reason |
-|------|--------|
-| {feature} | {why} |
+
+- Social sharing features (deliberately excluded — adds privacy complexity)
+- Third-party integrations (deliberately excluded — increases maintenance burden)
