@@ -24,7 +24,8 @@ if [[ "${1:-}" == "--verify" ]]; then
   echo "  .claude-plugin/marketplace.json $V_MKT_PLUGIN"
   echo "  marketplace.json                $V_MKT_ROOT"
 
-  # shellcheck disable=SC2055 -- intentional: detect if ANY file differs from VERSION
+  # intentional: detect if ANY file differs from VERSION
+  # shellcheck disable=SC2055
   if [[ "$V_FILE" != "$V_PLUGIN" || "$V_FILE" != "$V_MKT_PLUGIN" || "$V_FILE" != "$V_MKT_ROOT" ]]; then
     echo ""
     echo "MISMATCH DETECTED — the following files differ:" >&2
