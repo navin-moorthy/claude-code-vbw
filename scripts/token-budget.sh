@@ -1,8 +1,14 @@
 #!/usr/bin/env bash
 set -u
 
-# token-budget.sh <role> [file]
-# Enforces per-role token/line budgets on context content.
+# token-budget.sh <role> [file] [contract-path] [task-number]
+# Enforces token/line budgets on context content.
+#
+# Budget resolution order (v2_token_budgets=true):
+#   1. Per-task: contract metadata -> complexity score -> tier multiplier -> role base * multiplier
+#   2. Per-role: token-budgets.json .budgets[role].max_lines
+#   3. No budget (pass through): role not in budgets or max_lines=0
+#
 # Input: file path as arg, or stdin if no file.
 # Output: truncated content within budget (stdout).
 # Logs overage to metrics when v3_metrics=true.
