@@ -153,7 +153,19 @@ If `planning_dir_exists=false`: display "Run /vbw:init first to set up your proj
             - "Let me explain..."
             Record answer to discovery.json with category "differentiators", tier "differentiators".
             Mark these features as competitive advantages during requirement synthesis.
-          - **Round 5+ (Additional Thread-Following):** Continue thread-following pattern from Round 3. Mark user-identified features as tier "differentiators".
+          - **Round 5 (Anti-Features - Deliberate Exclusions):** After differentiator identification, infer common scope-creep features from research and confirm exclusions:
+            If RESEARCH_AVAILABLE=true:
+            1. Read domain-research.md ## Common Pitfalls and ## Competitor Landscape
+            2. Identify features that appear in competitors but add complexity (from Pitfalls)
+            3. Present as AskUserQuestion: "These are common in [domain] apps, but add complexity. Should we deliberately NOT build them?"
+            4. Options: 2-3 scope-creep features as checkboxes (multiSelect)
+               Example for recipe app: "Social sharing (adds privacy concerns)", "AI meal planning (complex, often unused)", "Grocery delivery integration (third-party dependency)"
+            5. Add "Build these anyway" option
+            6. Record selected exclusions to discovery.json with category "anti_features", tier "anti_features"
+            If RESEARCH_AVAILABLE=false:
+            Ask direct question: "What should this definitely NOT do?" Free-text, then convert to anti-features list.
+            Anti-features ensure explicit scope boundaries and prevent feature creep during planning.
+          - **Round 6+ (Additional Thread-Following):** Continue thread-following pattern from Round 3. Mark user-identified features as tier "differentiators".
        b. Present questions via AskUserQuestion
        c. **Pitfall relevance scoring (Round 2 → Round 3 transition):** After Round 2 completes, if RESEARCH_AVAILABLE=true and domain-research.md contains ## Common Pitfalls section:
           1. Read all pitfalls from domain-research.md
