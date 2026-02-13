@@ -115,6 +115,29 @@ generate_lines() {
   [[ "$output" == *"33%"* ]]
 }
 
+@test "metrics-report: computes median task latency" {
+  cd "$TEST_TEMP_DIR"
+  # Create matched start/confirm events with real timestamps and task_id data
+  echo '{"ts":"2026-01-01T10:00:00Z","event":"task_started","phase":1,"data":{"task_id":"t1"}}' >> ".vbw-planning/.events/event-log.jsonl"
+  echo '{"ts":"2026-01-01T10:05:00Z","event":"task_completed_confirmed","phase":1,"data":{"task_id":"t1"}}' >> ".vbw-planning/.events/event-log.jsonl"
+  echo '{"ts":"2026-01-01T10:10:00Z","event":"task_started","phase":1,"data":{"task_id":"t2"}}' >> ".vbw-planning/.events/event-log.jsonl"
+  echo '{"ts":"2026-01-01T10:20:00Z","event":"task_completed_confirmed","phase":1,"data":{"task_id":"t2"}}' >> ".vbw-planning/.events/event-log.jsonl"
+  run bash "$SCRIPTS_DIR/metrics-report.sh"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Median latency"* ]]
+  # Should not be N/A since we have matched pairs
+  [[ "$output" != *"Median latency: N/A"* ]]
+}
+
+@test "metrics-report: shows profile info in summary" {
+  cd "$TEST_TEMP_DIR"
+  echo '{"ts":"2026-01-01","event":"task_started","phase":1}' >> ".vbw-planning/.events/event-log.jsonl"
+  run bash "$SCRIPTS_DIR/metrics-report.sh"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"effort=balanced"* ]]
+  [[ "$output" == *"autonomy=standard"* ]]
+}
+
 # --- Config flag ---
 
 @test "defaults.json includes v2_token_budgets flag" {

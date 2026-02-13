@@ -161,3 +161,29 @@ CONTRACT
   [ "$status" -eq 2 ]
   [[ "$output" == *"not valid JSON"* ]]
 }
+
+@test "validate-message: target role cannot receive is rejected" {
+  cd "$TEST_TEMP_DIR"
+  # scout_findings can_receive is NOT in dev's can_receive list
+  MSG='{"id":"t-010","type":"scout_findings","phase":1,"task":"1-1-T1","author_role":"scout","target_role":"dev","timestamp":"2026-02-12T10:00:00Z","schema_version":"2.0","confidence":"high","payload":{"domain":"test","documents":["doc.md"]}}'
+  run bash "$SCRIPTS_DIR/validate-message.sh" "$MSG"
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"cannot receive"* ]]
+}
+
+@test "validate-message: target role can receive passes" {
+  cd "$TEST_TEMP_DIR"
+  # plan_contract IS in dev's can_receive list
+  MSG='{"id":"t-011","type":"plan_contract","phase":1,"task":"1-1-T1","author_role":"lead","target_role":"dev","timestamp":"2026-02-12T10:00:00Z","schema_version":"2.0","confidence":"high","payload":{"plan_id":"1-1","phase_id":"phase-1","objective":"test","tasks":["t1"],"allowed_paths":["src/"],"must_haves":["works"]}}'
+  run bash "$SCRIPTS_DIR/validate-message.sh" "$MSG"
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.valid == true'
+}
+
+@test "validate-message: absent target_role passes" {
+  cd "$TEST_TEMP_DIR"
+  # No target_role field — should not error
+  run bash "$SCRIPTS_DIR/validate-message.sh" "$(valid_message)"
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.valid == true'
+}
