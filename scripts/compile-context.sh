@@ -189,6 +189,28 @@ case "$ROLE" in
           echo "$DELTA_FILES" | while IFS= read -r f; do
             echo "- \`$f\`"
           done
+          # --- V3: Code Slices (REQ-08) ---
+          echo ""
+          echo "### Code Slices"
+          echo "$DELTA_FILES" | while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            if [ -f "$f" ]; then
+              LINES=$(wc -l < "$f" 2>/dev/null | tr -d ' ' || echo "0")
+              if [ "$LINES" -le 50 ]; then
+                echo ""
+                echo "#### \`$f\` (${LINES} lines)"
+                echo '```'
+                cat "$f" 2>/dev/null || true
+                echo '```'
+              else
+                echo ""
+                echo "#### \`$f\` (${LINES} lines, first 30 shown)"
+                echo '```'
+                head -30 "$f" 2>/dev/null || true
+                echo '```'
+              fi
+            fi
+          done
         fi
         # Include active plan content for focused context
         if [ -n "$PLAN_PATH" ] && [ -f "$PLAN_PATH" ]; then
