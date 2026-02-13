@@ -38,8 +38,41 @@ if [ -f "$EVENTS_FILE" ]; then
   CONFIRM_COUNT=$(echo "$TASK_CONFIRMS" | jq 'length' 2>/dev/null || echo "0")
   echo "- Tasks started: ${START_COUNT}"
   echo "- Tasks confirmed: ${CONFIRM_COUNT}"
+
+  # Compute median latency from matched start/confirm pairs (REQ-05)
+  MEDIAN_LATENCY="N/A"
+  if [ "$START_COUNT" -gt 0 ] && [ "$CONFIRM_COUNT" -gt 0 ]; then
+    LATENCIES=$(jq -n \
+      --argjson starts "$TASK_STARTS" --argjson confirms "$TASK_CONFIRMS" '
+      [
+        $confirms[] |
+        .task_id = (.data.task_id // "") |
+        .confirm_ts = .ts |
+        . as $c |
+        ($starts[] | select((.data.task_id // "") == $c.task_id)) as $s |
+        {
+          task: $c.task_id,
+          start: $s.ts,
+          end: $c.confirm_ts,
+          latency_s: (
+            (($c.confirm_ts | sub("Z$";"") | split("T") | .[0] | split("-") | (.[0]|tonumber)*31536000 + (.[1]|tonumber)*2592000 + (.[2]|tonumber)*86400) +
+             ($c.confirm_ts | sub("Z$";"") | split("T") | .[1] | split(":") | (.[0]|tonumber)*3600 + (.[1]|tonumber)*60 + (.[2]|tonumber))) -
+            (($s.ts | sub("Z$";"") | split("T") | .[0] | split("-") | (.[0]|tonumber)*31536000 + (.[1]|tonumber)*2592000 + (.[2]|tonumber)*86400) +
+             ($s.ts | sub("Z$";"") | split("T") | .[1] | split(":") | (.[0]|tonumber)*3600 + (.[1]|tonumber)*60 + (.[2]|tonumber)))
+          )
+        }
+      ] | sort_by(.latency_s) |
+      if length == 0 then "N/A"
+      elif length % 2 == 1 then .[length/2 | floor].latency_s | tostring
+      else ((.[length/2 - 1].latency_s + .[length/2].latency_s) / 2) | tostring
+      end
+    ' 2>/dev/null) || LATENCIES=""
+    [ -n "$LATENCIES" ] && [ "$LATENCIES" != "null" ] && MEDIAN_LATENCY="${LATENCIES}s"
+  fi
+  echo "- Median latency: ${MEDIAN_LATENCY}"
 else
   echo "- No event log data"
+  MEDIAN_LATENCY="N/A"
 fi
 echo ""
 
@@ -118,8 +151,19 @@ else
 fi
 echo ""
 
+# --- Profile Context (REQ-05) ---
+CONFIG_PATH="${PLANNING_DIR}/config.json"
+PROFILE_EFFORT="unknown"
+PROFILE_AUTONOMY="unknown"
+if [ -f "$CONFIG_PATH" ] && command -v jq &>/dev/null; then
+  PROFILE_EFFORT=$(jq -r '.effort // "unknown"' "$CONFIG_PATH" 2>/dev/null || echo "unknown")
+  PROFILE_AUTONOMY=$(jq -r '.autonomy // "unknown"' "$CONFIG_PATH" 2>/dev/null || echo "unknown")
+fi
+
 # --- Summary Table ---
 echo "## Summary"
+echo ""
+echo "Profile: effort=${PROFILE_EFFORT}, autonomy=${PROFILE_AUTONOMY}"
 echo ""
 echo "| Metric | Value |"
 echo "|--------|-------|"
@@ -148,6 +192,7 @@ fi
 
 echo "| Tasks started | ${SC} |"
 echo "| Tasks confirmed | ${CC} |"
+echo "| Median latency | ${MEDIAN_LATENCY} |"
 echo "| Token overages | ${OV} |"
 echo "| Gate failure rate | ${FR}% (${GF}/${GT}) |"
 echo "| Lease conflicts | ${LC} |"
