@@ -127,13 +127,27 @@ If `planning_dir_exists=false`: display "Run /vbw:init first to set up your proj
     6. On failure: Log warning "⚠ Domain research timed out, proceeding with general questions". Display to user: "⚠ Domain research took longer than expected — skipping to questions. (You can re-run `/vbw:vibe` later if you want domain-specific insights.)" Set RESEARCH_AVAILABLE=false, continue to Round 1
     7. Store RESEARCH_AVAILABLE flag for Round 1 context
     8. Comment: Research is best-effort. Timeout, WebSearch failures, or empty results all fall back to current behavior with no user-facing error.
-  - **If skip:** Ask 2 minimal static questions via AskUserQuestion: (1) "What are the must-have features?" (2) "Who will use this?" Create `.vbw-planning/discovery.json` with `{"answered":[],"inferred":[]}`.
+  - **If skip:** Ask 2 minimal static questions via AskUserQuestion:
+    1. "What are the must-have features for this project?" Options: ["Core functionality only", "A few essential features", "Comprehensive feature set", "Let me explain..."]
+    2. "Who will use this?" Options: ["Just me", "Small team (2-10 people)", "Many users (100+)", "Let me explain..."]
+    Record answers to `.vbw-planning/discovery.json` with `{"answered":[],"inferred":[]}` (append each answer to answered[] with minimal schema: question, answer, phase='bootstrap', date).
   - **If quick/standard/thorough:** Read `${CLAUDE_PLUGIN_ROOT}/references/discovery-protocol.md`. Follow Bootstrap Discovery flow:
     1. Analyze user's description for domain, scale, users, complexity signals
     2. Initialize ROUND=1, QUESTIONS_ASKED=0
     3. **Round loop:**
        a. **Question generation:**
-          - **Round 1 (Scenarios):** Generate scenario questions per protocol. Present as AskUserQuestion with descriptive options. **Scenario generation:** If RESEARCH_AVAILABLE=true, read `.vbw-planning/domain-research.md` and integrate findings: (a) Table Stakes → checklist questions in Round 2, (b) Common Pitfalls → scenario situations (e.g., 'What happens when [pitfall situation]?'), (c) Architecture Patterns → technical preference scenarios (e.g., 'Should the system use [pattern A] or [pattern B]?'), (d) Competitor Landscape → differentiation scenarios (e.g., '{Competitor X} does {feature}. Should yours work the same way or differently?'). If RESEARCH_AVAILABLE=false, use description analysis only per existing protocol.
+          - **Round 1 (Scenarios):** Generate scenario questions per protocol. Present as AskUserQuestion with descriptive options. **Scenario generation (step-by-step):**
+            If RESEARCH_AVAILABLE=true:
+            1. Read `.vbw-planning/domain-research.md` sections: ## Common Pitfalls, ## Architecture Patterns, ## Competitor Landscape
+            2. Extract 1-2 specific findings from each section (prioritize high-impact items)
+            3. Generate scenario question using these patterns:
+               - Common Pitfalls → situation questions: "What happens when [specific pitfall situation from research]?" with 3-4 concrete handling options
+               - Architecture Patterns → technical preference: "Should the system use [pattern A from research] or [pattern B]?" with trade-off options
+               - Competitor Landscape → differentiation: "[Competitor X from research] does [specific feature]. Should yours work the same way or differently?" with approach options
+            4. Present scenario question via AskUserQuestion with 3-4 descriptive options including "Let me explain..."
+            5. Record answer to discovery.json (step 3f below)
+            6. Continue to next question generation (Round 2 or keep-exploring gate)
+            If RESEARCH_AVAILABLE=false: Generate scenario from user's project description analysis only (domain signals, scale, users, complexity). No research-specific content.
           - **Round 2 (Table Stakes Checklist):** If RESEARCH_AVAILABLE=true, generate table stakes checklist from domain-research.md:
             1. Read `## Table Stakes` section
             2. Extract 3-6 common features (bullet points)
@@ -167,7 +181,9 @@ If `planning_dir_exists=false`: display "Run /vbw:init first to set up your proj
             Anti-features ensure explicit scope boundaries and prevent feature creep during planning.
           - **Round 6+ (Additional Thread-Following):** Continue thread-following pattern from Round 3. Mark user-identified features as tier "differentiators".
        b. Present questions via AskUserQuestion
-       c. **Pitfall relevance scoring (Round 2 → Round 3 transition):** After Round 2 completes, if RESEARCH_AVAILABLE=true and domain-research.md contains ## Common Pitfalls section:
+       c. **Pitfall relevance scoring (executed after Round 2 completes, before Round 3 question generation):**
+          **Timing:** After step 3a Round 2 question answered and step 3f records answer to discovery.json, BEFORE step 3a Round 3 question generation begins.
+          **Trigger condition:** If ROUND=2 just completed AND RESEARCH_AVAILABLE=true AND domain-research.md contains ## Common Pitfalls section:
           1. Read all pitfalls from domain-research.md
           2. Score each pitfall for relevance to user's project based on prior answers in discovery.json:
              - If pitfall mentions "scale" or "performance" AND user answered "thousands of users" → +2 relevance
@@ -413,16 +429,35 @@ If `planning_dir_exists=false`: display "Run /vbw:init first to set up your proj
    **Scope creep detection (after each answer):**
    After user responds to each question, check the answer text for out-of-scope feature mentions:
 
-   a. **Feature extraction:** Parse user's answer text for capability/feature keywords (nouns and noun phrases that suggest features):
-      - Look for patterns: "dashboard", "API", "notifications", "reports", "analytics", "authentication", "admin panel", "search", "export", "import", "integration", "sync", "automation", "scheduling", etc.
-      - Extract 2-4 word phrases that describe capabilities (e.g., "user authentication", "real-time sync", "data export")
+   a. **Feature extraction (concrete method):** Parse user's answer text for capability/feature keywords using this process:
+      1. Split answer text into 2-4 word noun phrases (e.g., "user authentication", "real-time sync", "admin panel")
+      2. Match extracted phrases against capability keyword list (case-insensitive substring matching):
+         - **UI capabilities:** dashboard, admin panel, interface, screen, form, menu, navigation, widget, modal, view
+         - **Data capabilities:** database, storage, export, import, backup, migration, archive, analytics, reports
+         - **Integration capabilities:** API, webhook, sync, integration, third-party, connection, authentication, OAuth
+         - **Automation capabilities:** notifications, scheduling, automation, triggers, alerts, reminders
+         - **User capabilities:** authentication, authorization, login, signup, permissions, roles, accounts
+         - **Search capabilities:** search, filter, query, lookup, find
+      3. Extract phrases that match ANY keyword (1+ keyword hits = feature mention detected)
+      4. Store matched phrases with their matched keywords for boundary checking (step b)
 
-   b. **Boundary matching:** For each extracted feature mention:
-      - Check if it appears in current phase's goal/requirements (from phase boundary map, case-insensitive keyword matching)
-      - If YES (in current phase): skip, it's in scope
-      - If NO (not in current phase): check if it appears in OTHER phases' goals/requirements
-      - Match logic: case-insensitive substring match or keyword overlap
-      - If feature text appears in another phase's boundary: flag as potential scope creep
+   b. **Boundary matching (with edge case handling):** For each extracted feature mention from step a:
+      1. Check if it appears in current phase's goal/requirements (from phase boundary map, case-insensitive keyword matching)
+         - If YES (in current phase): skip, it's in scope
+      2. If NO (not in current phase): check if it appears in OTHER phases' goals/requirements
+         - Match logic: case-insensitive substring match or keyword overlap between feature text and phase boundary text
+         - If feature text appears in another phase's boundary: identify target phase, proceed to step c
+      3. **Edge case: Unmatched features** (no keyword match in any phase boundary):
+         - Skip scope creep check entirely (no redirect)
+         - Assume in-scope (user knows best, feature may be implicit in current phase goal)
+      4. **Edge case: Completed phases** (feature matches a phase that has SUMMARY.md):
+         - Check if target phase directory contains `*-SUMMARY.md` file
+         - If YES: skip redirect (phase already built, out of scope for planning)
+         - Display brief note: "Note: [Feature] was addressed in Phase [N]" (informational only, no AskUserQuestion)
+      5. **Edge case: Duplicate mentions** (feature already deferred in prior round):
+         - Before flagging scope creep, check discovery.json.answered[] for prior `category: "deferred_idea"` entries with same matched_keyword
+         - If duplicate found: skip redirect (already discussed)
+         - No additional AskUserQuestion for same feature
 
    c. **Suggested phase identification:** When scope creep flagged:
       - Identify which other phase(s) contain the matched keyword
