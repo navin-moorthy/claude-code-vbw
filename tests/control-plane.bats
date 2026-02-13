@@ -237,3 +237,87 @@ enable_flags() {
   echo "$output" | jq -e '.steps | type == "array"'
   echo "$output" | jq -e '.steps | length > 0'
 }
+
+# --- Integration tests (protocol-level flow) ---
+
+@test "control-plane: full plan lifecycle (contract + compile + pre-task + post-task)" {
+  create_test_plan
+  create_roadmap
+  cd "$TEST_TEMP_DIR"
+  enable_flags '.v3_contract_lite = true | .v3_lock_lite = true'
+
+  # Step 1: full action (once per plan) — generates contract + compiles context
+  run bash "$SCRIPTS_DIR/control-plane.sh" full 1 1 1 \
+    --plan-path=test-plan.md --role=dev --phase-dir=.vbw-planning/phases/01-test
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.steps[] | select(.name == "contract") | .status == "pass"'
+  echo "$output" | jq -e '.steps[] | select(.name == "context") | .status == "pass"'
+  [ -f ".vbw-planning/.contracts/1-1.json" ]
+  [ -f ".vbw-planning/phases/01-test/.context-dev.md" ]
+
+  # Step 2: pre-task (before task 1) — acquires lock
+  run bash "$SCRIPTS_DIR/control-plane.sh" pre-task 1 1 1 \
+    --plan-path=test-plan.md --task-id=1-1-T1 --claimed-files=src/a.js
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.steps[] | select(.name == "lease_acquire") | .status == "pass"'
+  [ -f ".vbw-planning/.locks/1-1-T1.lock" ]
+
+  # Step 3: post-task (after task 1) — releases lock
+  run bash "$SCRIPTS_DIR/control-plane.sh" post-task 1 1 1 --task-id=1-1-T1
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.steps[] | select(.name == "lease_release") | .status == "pass"'
+  [ ! -f ".vbw-planning/.locks/1-1-T1.lock" ]
+}
+
+@test "control-plane: fallback when dependency script missing" {
+  create_test_plan
+  create_roadmap
+  cd "$TEST_TEMP_DIR"
+  enable_flags '.v3_contract_lite = true'
+
+  # Create a local scripts dir with control-plane.sh but WITHOUT generate-contract.sh
+  mkdir -p "$TEST_TEMP_DIR/scripts"
+  cp "$SCRIPTS_DIR/control-plane.sh" "$TEST_TEMP_DIR/scripts/"
+  # Copy supporting scripts except generate-contract.sh
+  for s in compile-context.sh token-budget.sh lock-lite.sh lease-lock.sh hard-gate.sh auto-repair.sh; do
+    [ -f "$SCRIPTS_DIR/$s" ] && cp "$SCRIPTS_DIR/$s" "$TEST_TEMP_DIR/scripts/"
+  done
+
+  # full action should still exit 0 (fail-open on missing generate-contract.sh)
+  run bash "$TEST_TEMP_DIR/scripts/control-plane.sh" full 1 1 1 \
+    --plan-path=test-plan.md --role=dev --phase-dir=.vbw-planning/phases/01-test
+  [ "$status" -eq 0 ]
+  # Contract step should fail gracefully (not crash)
+  # Extract JSON from output (skip stderr lines that appear before JSON)
+  local json_output
+  json_output=$(echo "$output" | sed -n '/^{/,/^}/p')
+  local contract_status
+  contract_status=$(echo "$json_output" | jq -r '.steps[] | select(.name == "contract") | .status')
+  [[ "$contract_status" == "fail" || "$contract_status" == "skip" ]]
+}
+
+@test "control-plane: multiple tasks in sequence without stale locks" {
+  create_test_plan
+  cd "$TEST_TEMP_DIR"
+  enable_flags '.v3_lock_lite = true'
+
+  # Task 1: pre-task -> post-task
+  run bash "$SCRIPTS_DIR/control-plane.sh" pre-task 1 1 1 --task-id=1-1-T1 --claimed-files=src/a.js
+  [ "$status" -eq 0 ]
+  [ -f ".vbw-planning/.locks/1-1-T1.lock" ]
+
+  run bash "$SCRIPTS_DIR/control-plane.sh" post-task 1 1 1 --task-id=1-1-T1
+  [ "$status" -eq 0 ]
+  [ ! -f ".vbw-planning/.locks/1-1-T1.lock" ]
+
+  # Task 2: pre-task -> post-task (no stale lock from task 1)
+  run bash "$SCRIPTS_DIR/control-plane.sh" pre-task 1 1 2 --task-id=1-1-T2 --claimed-files=src/b.js
+  [ "$status" -eq 0 ]
+  [ -f ".vbw-planning/.locks/1-1-T2.lock" ]
+  # Task 1 lock should still be gone
+  [ ! -f ".vbw-planning/.locks/1-1-T1.lock" ]
+
+  run bash "$SCRIPTS_DIR/control-plane.sh" post-task 1 1 2 --task-id=1-1-T2
+  [ "$status" -eq 0 ]
+  [ ! -f ".vbw-planning/.locks/1-1-T2.lock" ]
+}
