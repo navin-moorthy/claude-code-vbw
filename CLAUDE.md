@@ -7,9 +7,9 @@ A Claude Code plugin that adds structured development workflows — planning, ex
 ## Active Context
 
 **Work:** No active milestone
-**Last shipped:** Init Auto-Bootstrap — 4 phases, 6 plans, 28 tasks, 29 commits. Transformed /vbw:init into intelligent, context-aware initialization with brownfield inference, GSD history extraction, confirmation UX, and shared bootstrap scripts.
-**Previous:** Granular Model Config — 2 phases, 2 plans, 6 tasks, 6 commits
-**Next action:** Run /vbw:vibe to start a new milestone, or /vbw:status to review progress
+**Last shipped:** Full Spec Compliance — 5 phases, 51 tasks, 46 commits, 188/188 QA
+**Previous:** Spec Completion — 3 phases, 12 tasks, 12 commits, 92/92 QA
+**Next action:** Run /vbw:vibe to start a new milestone
 
 ## VBW Rules
 
