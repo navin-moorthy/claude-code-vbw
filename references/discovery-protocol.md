@@ -739,11 +739,11 @@ Full schema including Phase 2 extensions:
 
 ### vibe.md Integration
 
-**Bootstrap Discovery:** Implemented in vibe.md State 1, Step B2 (lines 105-290). Runs after PROJECT.md creation (B1) and before ROADMAP.md generation (B3). Profile depth mapping in B1.5 determines DISCOVERY_DEPTH. Domain research in B2.1 spawns Scout agent. Round-based loop in B2 steps a-i implements all features: scenarios, table stakes, thread-following, differentiators, anti-features, vague answer disambiguation, pitfall warnings, keep-exploring gate.
+**Bootstrap Discovery:** Implemented in vibe.md Bootstrap mode, State 1 Step B2. Runs after PROJECT.md creation (B1) and before ROADMAP.md generation (B3). Profile depth mapping in B1.5 determines DISCOVERY_DEPTH. Domain research in B2.1 spawns Scout agent. Round-based loop in B2 steps a-i implements all features: scenarios, table stakes, thread-following, differentiators, anti-features, vague answer disambiguation, pitfall warnings, keep-exploring gate.
 
 **Phase Discovery:** Implemented in vibe.md Plan mode (States 3-4), before planning begins. Reads phase scope from ROADMAP.md, checks discovery.json for prior answers, generates 1-3 phase-scoped questions, passes context to Lead agent prompt.
 
-**Phase Discussion (Discuss Mode):** Implemented in vibe.md Discuss mode (lines 322-533). Phase type detection in steps 3-4 uses five keyword patterns (UI/API/CLI/Data/Integration) with 2+ match threshold. Domain-typed question generation in step 5 uses type-specific templates. Scope creep detection in step 5 after each answer extracts features, matches against phase boundaries, triggers gentle redirect. Deferred ideas captured to CONTEXT.md in step 6 and discovery.json in step 7.
+**Phase Discussion (Discuss Mode):** Implemented in vibe.md Discuss mode. Phase type detection in steps 3-4 uses five keyword patterns (UI/API/CLI/Data/Integration) with 2+ match threshold. Domain-typed question generation in step 5 uses type-specific templates. Scope creep detection in step 5 after each answer extracts features, matches against phase boundaries, triggers gentle redirect. Deferred ideas captured to CONTEXT.md in step 6 and discovery.json in step 7.
 
 ### Bootstrap Scripts
 
